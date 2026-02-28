@@ -103,10 +103,13 @@ export default async function DashboardPage() {
                                 {t.lint_results && (
                                     <div className="flex flex-wrap gap-1.5">
                                         {LINT_LABELS.map(({ key, label }) => {
-                                            const check = t.lint_results![key];
+                                            const check = t.lint_results?.[key];
                                             if (!check) return null;
                                             return (
-                                                <span key={key} className={`text-2xs px-2 py-0.5 rounded-full border font-mono ${check.pass ? "bg-green-900/30 text-green-400 border-green-800/40" : "bg-orange-900/30 text-orange-400 border-orange-800/40"}`}>
+                                                <span
+                                                    key={key}
+                                                    className={`text-2xs px-2 py-0.5 rounded-full border font-mono ${check.pass ? "bg-green-900/30 text-green-400 border-green-800/40" : "bg-orange-900/30 text-orange-400 border-orange-800/40"}`}
+                                                >
                                                     {check.pass ? "✓" : "⚠"} {label}
                                                 </span>
                                             );

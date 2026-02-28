@@ -51,37 +51,38 @@ export default function ObservatoryPage() {
                     ))}
                 </div>
 
-                {/* Best archetype */}
-                {data.best_archetype && (
-                    <div className="panel rounded-lg p-4 mb-6 flex items-center gap-4">
-                        <div>
+                {/* Middle Row: Archetype & Chart */}
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                    {/* Best archetype */}
+                    {data.best_archetype && (
+                        <div className="panel rounded-lg p-4 flex flex-col justify-center">
                             <div className="text-2xs text-text-muted font-mono uppercase tracking-wider mb-1">Top Archetype</div>
-                            <div className="text-lg font-medium text-gold-400">{data.best_archetype}</div>
-                            <div className="text-xs text-text-muted mt-0.5">Highest save rate</div>
+                            <div className="text-2xl font-medium text-gold-400 capitalize">{data.best_archetype}</div>
+                            <div className="text-xs text-text-muted mt-1">Highest converting format by save rate</div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Save Rate Bar Chart (pure CSS — no chart lib needed) */}
-                <div className="panel rounded-lg p-4 mb-6">
-                    <div className="text-2xs text-text-muted font-mono uppercase tracking-wider mb-4">Save Rate by Post</div>
-                    <div className="flex flex-col gap-2">
-                        {data.posts.slice(0, 10).map(post => (
-                            <div key={post.task_id} className="flex items-center gap-3">
-                                <div className="text-2xs text-text-muted font-mono w-28 shrink-0 truncate">
-                                    {post.title || post.task_id}
+                    {/* Save Rate Bar Chart (pure CSS) */}
+                    <div className="panel rounded-lg p-4">
+                        <div className="text-2xs text-text-muted font-mono uppercase tracking-wider mb-4">Save Rate by Post</div>
+                        <div className="flex flex-col gap-2">
+                            {data.posts.slice(0, 5).map(post => (
+                                <div key={post.task_id} className="flex items-center gap-3">
+                                    <div className="text-2xs text-text-muted font-mono w-28 shrink-0 truncate">
+                                        {post.title || post.task_id}
+                                    </div>
+                                    <div className="flex-1 h-3 bg-surface-800 rounded overflow-hidden">
+                                        <div
+                                            className="h-full bg-gold-500/60 rounded transition-all"
+                                            style={{ width: `${(post.save_rate / maxSaveRate) * 100}%` }}
+                                        />
+                                    </div>
+                                    <div className="text-2xs text-text-secondary font-mono w-10 text-right shrink-0">
+                                        {(post.save_rate * 100).toFixed(1)}%
+                                    </div>
                                 </div>
-                                <div className="flex-1 h-4 bg-surface-800 rounded overflow-hidden">
-                                    <div
-                                        className="h-full bg-gold-500/60 rounded transition-all"
-                                        style={{ width: `${(post.save_rate / maxSaveRate) * 100}%` }}
-                                    />
-                                </div>
-                                <div className="text-2xs text-text-secondary font-mono w-12 text-right shrink-0">
-                                    {(post.save_rate * 100).toFixed(1)}%
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
 

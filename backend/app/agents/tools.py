@@ -372,12 +372,16 @@ async def compute_patterns_tool(limit: int = 20) -> str:
     Returns a structured Markdown summary of archetype, domain, and role patterns.
     """
     from app.db.database import AsyncSessionLocal
-    from app.db.models import PostMetrics as PostMetricsModel
-    from sqlalchemy import select, func
+    from app.db.models import PublishedPost, CoddeTask
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(PostMetricsModel).order_by(PostMetricsModel.published_at.desc()).limit(limit)
+            select(PublishedPost)
+            .options(selectinload(PublishedPost.task))
+            .order_by(PublishedPost.published_at.desc())
+            .limit(limit)
         )
         posts = result.scalars().all()
 
@@ -390,13 +394,17 @@ async def compute_patterns_tool(limit: int = 20) -> str:
     by_role: dict[str, list[float]] = {}
 
     for p in posts:
-        rate = p.save_rate or 0.0
-        if p.archetype:
-            by_archetype.setdefault(p.archetype, []).append(rate)
-        if p.domain:
-            by_domain.setdefault(p.domain, []).append(rate)
-        if p.role:
-            by_role.setdefault(p.role, []).append(rate)
+        rate = p.metrics.get("save_rate", 0.0) if p.metrics else 0.0
+        task = p.task
+        if not task:
+            continue
+            
+        if task.archetype:
+            by_archetype.setdefault(task.archetype, []).append(rate)
+        if task.domain:
+            by_domain.setdefault(task.domain, []).append(rate)
+        if task.role:
+            by_role.setdefault(task.role, []).append(rate)
 
     def _top(d: dict[str, list[float]], n: int = 3) -> list[tuple[str, float]]:
         avgs = [(k, sum(v) / len(v)) for k, v in d.items()]

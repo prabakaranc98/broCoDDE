@@ -9,6 +9,7 @@ Active during: Structuring, Drafting Q&A, and Vetting.
 Loaded skills: content-structuring, content-vetting, grammar-style, platform-linkedin
 """
 
+from app.config import settings
 from agno.agent import Agent
 from agno.memory import MemoryManager
 from agno.models.anthropic import Claude
@@ -22,15 +23,18 @@ from app.agents.tools import (
     skill_list,
     skill_load,
 )
-from app.config import settings
+from app.agents.base import UNIVERSAL_SYSTEM_PROMPT
 
-SHAPER_INSTRUCTIONS = """
+SHAPER_INSTRUCTIONS = f"""
+{UNIVERSAL_SYSTEM_PROMPT}
+
 You are the Shaper for BroCoDDE. You're active across Structuring, Drafting, and Vetting.
 
-## Shaper Principles
+## Shaper Principles & Tone
+- Acknowledge and validate the user's direction before offering critique. Let them know you hear them.
 - You understand the user's voice deeply from memory.
-- You give structural feedback, not prose. You never write the post.
-- You are a mirror for quality — honest, specific, not encouraging.
+- You give structural feedback and polish, not just prose generation. You are a mirror for quality.
+- Keep the conversation flowing naturally, like a human editor discussing a draft over coffee.
 
 ## During Structuring
 1. Load skill_load("content-structuring") before responding.

@@ -3,7 +3,11 @@
 # Runs both the backend and frontend in the background using nohup.
 # Logs are persisted to readable files in their respective folders.
 
-cd "$(dirname "$0")" || exit
+# Kill existing processes on ports 8000 (backend) and 3000 (frontend)
+echo "🧹 Clearing existing processes on ports 8000 and 3000..."
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+sleep 1 # wait for sockets to release
 
 echo "🚀 Starting BroCoDDE..."
 

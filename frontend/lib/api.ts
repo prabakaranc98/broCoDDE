@@ -3,7 +3,9 @@
  * Typed fetch wrapper for the FastAPI backend.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = typeof window !== "undefined"
+    ? "http://localhost:8000"
+    : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000");
 
 class ApiError extends Error {
     constructor(public status: number, message: string) {

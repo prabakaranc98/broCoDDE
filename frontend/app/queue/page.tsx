@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { CoddeTask, LintResults } from "@/lib/types";
+import type { CoddeTask, LintResults, Series } from "@/lib/types";
 import { STAGE_LABELS } from "@/lib/types";
 import { CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import clsx from "clsx";
@@ -33,23 +34,29 @@ function LintBadge({ checkKey, label, results }: { checkKey: keyof LintResults; 
     );
 }
 
-export default function QueuePage() {
+function QueueContent() {
+    const searchParams = useSearchParams();
+    const seriesId = searchParams.get("series") || undefined;
     const [tasks, setTasks] = useState<CoddeTask[]>([]);
+    const [series, setSeries] = useState<Series | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (seriesId) {
+            api.series.get(seriesId).then(setSeries).catch(console.error);
+        }
         Promise.all([
-            api.tasks.list("ready"),
-            api.tasks.list("vetting"),
-            api.tasks.list("drafting"),
-            api.tasks.list("structuring"),
-            api.tasks.list("extraction"),
-            api.tasks.list("discovery"),
+            api.tasks.list("ready", seriesId),
+            api.tasks.list("vetting", seriesId),
+            api.tasks.list("drafting", seriesId),
+            api.tasks.list("structuring", seriesId),
+            api.tasks.list("extraction", seriesId),
+            api.tasks.list("discovery", seriesId),
         ]).then(results => {
             setTasks(results.flat());
             setLoading(false);
         }).catch(() => setLoading(false));
-    }, []);
+    }, [seriesId]);
 
     const ready = tasks.filter(t => t.stage === "ready");
     const inProgress = tasks.filter(t => t.stage !== "ready");
@@ -58,7 +65,15 @@ export default function QueuePage() {
         <div className="h-full overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
-                    <div className="text-xs text-text-muted font-mono uppercase tracking-wider mb-1">Publish Queue</div>
+                    <div className="text-xs text-text-muted font-mono uppercase tracking-wider mb-1 flex items-center gap-2">
+                        <Link href="/series" className="hover:text-gold-400 transition-colors">Publish Queue</Link>
+                        {series && (
+                            <>
+                                <ChevronRight size={12} />
+                                <span className="text-gold-400">{series.icon} {series.name}</span>
+                            </>
+                        )}
+                    </div>
                     <h1 className="text-2xl font-medium text-text-primary">
                         {ready.length === 0 ? "No posts ready to publish" : `${ready.length} ready to publish`}
                     </h1>
@@ -93,6 +108,14 @@ export default function QueuePage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function QueuePage() {
+    return (
+        <Suspense fallback={<div className="p-6 text-sm text-text-muted">Loading queue…</div>}>
+            <QueueContent />
+        </Suspense>
     );
 }
 

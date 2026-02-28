@@ -96,12 +96,15 @@ async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db)):
 @router.get("", response_model=list[TaskResponse])
 async def list_tasks(
     stage: str | None = None,
-    limit: int = 20,
+    series_id: str | None = None,
+    limit: int = 100,
     db: AsyncSession = Depends(get_db),
 ):
     query = select(CoddeTask).order_by(CoddeTask.created_at.desc()).limit(limit)
     if stage:
         query = query.where(CoddeTask.stage == stage)
+    if series_id:
+        query = query.where(CoddeTask.series_id == series_id)
     result = await db.execute(query)
     return list(result.scalars().all())
 

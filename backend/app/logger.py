@@ -15,6 +15,9 @@ from fastapi import Request, Response
 logger = logging.getLogger("brocodde")
 logger.setLevel(logging.INFO)
 
+import os
+from logging.handlers import RotatingFileHandler
+
 # Use a clean, structured format for the console
 formatter = logging.Formatter(
     fmt="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
@@ -23,8 +26,14 @@ formatter = logging.Formatter(
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(formatter)
+
+os.makedirs("logs", exist_ok=True)
+file_handler = RotatingFileHandler("logs/brocodde.log", maxBytes=5*1024*1024, backupCount=5)
+file_handler.setFormatter(formatter)
+
 if not logger.handlers:
     logger.addHandler(handler)
+    logger.addHandler(file_handler)
 
 
 # ── Middleware ────────────────────────────────────────────────────────────────

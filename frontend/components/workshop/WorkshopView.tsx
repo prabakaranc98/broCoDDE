@@ -37,7 +37,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
         if (!task) return;
 
         const userMsg: ChatMessage = {
-            id: crypto.randomUUID(),
+            id: (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
             role: "user",
             content: text,
             timestamp: new Date().toISOString(),
@@ -57,7 +57,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             },
             onDone: () => {
                 const agentMsg: ChatMessage = {
-                    id: crypto.randomUUID(),
+                    id: (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
                     role: "agent",
                     content: accumulated,
                     agent_name: getAgentName(task.stage),
@@ -70,7 +70,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             },
             onError: (err) => {
                 setMessages(prev => [...prev, {
-                    id: crypto.randomUUID(),
+                    id: (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
                     role: "agent",
                     content: `[Error: ${err.message}]`,
                     timestamp: new Date().toISOString(),

@@ -100,8 +100,6 @@ def build_analyst(
         add_memories_to_context=True,
         user_id=user_id,
         session_id=session_id,
-        add_history_to_messages=True,
-        num_history_runs=10,
         markdown=True,
         stream=True,
     )

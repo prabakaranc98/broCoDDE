@@ -55,6 +55,7 @@ class CoddeTask(Base):
     drafts: Mapped[list[dict]] = mapped_column(JSON, default=list)
     lint_results: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     final_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chat_history: Mapped[list[dict]] = mapped_column(JSON, default=list)
 
     # Timestamps
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -59,6 +59,7 @@ class TaskResponse(BaseModel):
     stage: str
     lint_results: dict | None
     skeleton: dict | None
+    chat_history: list[dict] | None = None
     created_at: datetime
     updated_at: datetime
 

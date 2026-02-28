@@ -10,6 +10,8 @@ import type { CoddeTask, ChatMessage, LifecycleStage, Role, Intent } from "@/lib
 import { STAGE_LABELS } from "@/lib/types";
 import { ChevronRight, ArrowUpCircle } from "lucide-react";
 import clsx from "clsx";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface WorkshopViewProps {
     taskId: string;
@@ -25,7 +27,12 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
 
     // Load task
     useEffect(() => {
-        api.tasks.get(taskId).then(setTask).catch(console.error);
+        api.tasks.get(taskId).then((t) => {
+            setTask(t);
+            if (t.chat_history) {
+                setMessages(t.chat_history);
+            }
+        }).catch(console.error);
     }, [taskId]);
 
     // Auto-scroll to bottom
@@ -51,6 +58,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
         await streamChat({
             taskId,
             message: text,
+            onAdvanceStage: () => advanceStage(),
             onChunk: (chunk) => {
                 accumulated += chunk;
                 setStreamingContent(accumulated);
@@ -187,16 +195,39 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     return (
         <div className={clsx("flex gap-3", isUser && "flex-row-reverse")}>
             <div className={clsx(
-                "w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5 text-xs",
-                isUser ? "bg-surface-700 text-text-muted" : "bg-gold-500/20 text-gold-400"
+                "w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5 text-xs text-text-muted",
+                isUser ? "bg-surface-700" : "bg-gold-500/20 text-gold-400"
             )}>
                 {isUser ? "U" : (message.agent_name?.[0] || "A")}
             </div>
             <div className={clsx(
-                "flex-1 text-sm leading-relaxed whitespace-pre-wrap",
+                "flex-1 text-sm overflow-hidden",
                 isUser ? "text-text-primary text-right" : "text-text-secondary"
             )}>
-                {message.content}
+                {isUser ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                ) : (
+                    <div className="markdown-body">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="list-disc ml-5 mb-3 space-y-1" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="list-decimal ml-5 mb-3 space-y-1" {...props} />,
+                                li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-semibold text-text-primary" {...props} />,
+                                em: ({ node, ...props }: any) => <em className="italic" {...props} />,
+                                code: ({ node, inline, ...props }: any) =>
+                                    inline ?
+                                        <code className="bg-surface-800 text-gold-200 px-1 py-0.5 rounded text-xs font-mono" {...props} /> :
+                                        <pre className="bg-surface-800 text-text-secondary p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono border border-border-subtle"><code {...props} /></pre>,
+                                blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-gold-500/30 pl-3 my-3 italic text-text-muted" {...props} />
+                            }}
+                        >
+                            {message.content}
+                        </ReactMarkdown>
+                    </div>
+                )}
             </div>
         </div>
     );

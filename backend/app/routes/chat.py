@@ -38,23 +38,55 @@ async def chat(
 
     async def event_generator():
         from app.logger import logger
+        from datetime import datetime
+        
         yield "data: \n\n"  # SSE: open connection
         
+        full_agent_message = ""
+        agent_role = task.role or "researcher"
+
         try:
             async for chunk in stream_chat(
                 message=body.message,
                 task_stage=task.stage,
                 task_id=task_id,
-                role=task.role or "researcher",
+                role=agent_role,
                 intent=task.intent or "teach",
                 user_id=body.user_id,
                 session_id=f"{task_id}-{task.stage}",
                 deep_critique=body.deep_critique,
             ):
                 if chunk:
+                    full_agent_message += chunk
                     # Escape newlines in SSE data field
                     escaped = chunk.replace("\n", "\\n")
                     yield f"data: {escaped}\n\n"
+                    
+            # Save to chat history on completion
+            history = list(task.chat_history or [])
+            # User message
+            history.append({
+                "id": f"msg_u_{datetime.utcnow().timestamp()}",
+                "role": "user",
+                "content": body.message,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            # Agent message
+            history.append({
+                "id": f"msg_a_{datetime.utcnow().timestamp()}",
+                "role": "agent",
+                "content": full_agent_message,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            # Since the db session might be out of context in the generator, we need a fresh one
+            from app.db.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                db_task = await session.get(CoddeTask, task_id)
+                if db_task:
+                    db_task.chat_history = history
+                    await session.commit()
+                    
         except Exception as e:
             logger.error(f"Stream error on task {task_id}: {str(e)}", exc_info=True)
             yield f"data: [AgentOS Error: {str(e)}]\n\n"

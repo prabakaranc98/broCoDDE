@@ -20,9 +20,25 @@ from app.memory.models import (
 
 # ── Layer 1: Identity Memory ──────────────────────────────────────────────────
 
-async def get_identity_memory(db: AsyncSession) -> list[MemoryEntry]:
-    result = await db.execute(select(MemoryEntry).order_by(MemoryEntry.created_at.desc()))
-    return list(result.scalars().all())
+async def get_identity_memory(
+    db: AsyncSession,
+    source: str | None = None,
+    lifecycle_phase: str | None = None,
+) -> list[MemoryEntry]:
+    """Return context entries, optionally filtered by source and/or lifecycle phase."""
+    query = select(MemoryEntry).order_by(MemoryEntry.created_at.desc())
+    if source:
+        query = query.where(MemoryEntry.source == source)
+    result = await db.execute(query)
+    entries = list(result.scalars().all())
+    # lifecycle_phases=[] means "inject at all stages"
+    # lifecycle_phases=["discovery"] means only inject during Discovery
+    if lifecycle_phase:
+        entries = [
+            e for e in entries
+            if not e.lifecycle_phases or lifecycle_phase in e.lifecycle_phases
+        ]
+    return entries
 
 
 async def create_memory_entry(db: AsyncSession, data: MemoryEntryCreate) -> MemoryEntry:
@@ -136,7 +152,7 @@ async def compute_performance_patterns(db: AsyncSession) -> PerformancePatterns:
     all_impressions = [p.metrics.get("impressions", 0) for p in posts if p.metrics]
     all_saves = [p.metrics.get("saves", 0) for p in posts if p.metrics]
     avg_imp_total = sum(all_impressions) / len(all_impressions) if all_impressions else 0
-    avg_save_total = sum(all_saves) / len(all_impressions) if all_impressions else 0
+    avg_save_total = sum(all_saves) / len(all_saves) if all_saves else 0
 
     return PerformancePatterns(
         archetype_performance=sorted(archetype_perf, key=lambda x: x.avg_save_rate, reverse=True),
@@ -155,15 +171,29 @@ async def compose_context(
     task_id: str | None = None,
     include_trending: list[dict] | None = None,
 ) -> ComposedContext:
-    """Compose context window appropriate for the given lifecycle stage."""
-    identity = await get_identity_memory(db)
+    """
+    Compose the context window appropriate for the given lifecycle stage.
+
+    Separates user-provided context (curated by the human) from
+    agent-derived context (extracted from conversations + post-mortems).
+    Both are filtered by lifecycle_phase so agents only receive what's relevant.
+    """
+    # User-provided context: filtered to this lifecycle phase
+    user_entries = await get_identity_memory(db, source="user", lifecycle_phase=stage)
+    # Agent-derived context: also filtered to this lifecycle phase
+    agent_entries = await get_identity_memory(db, source="agent", lifecycle_phase=stage)
+
     domains = await get_domains(db)
     recent = await get_recent_tasks(db, limit=5)
 
     context = ComposedContext(
         identity_memory=[
-            {"type": e.type, "text": e.text, "tags": e.tags}
-            for e in identity
+            {"source": e.source, "type": e.type, "text": e.text, "tags": e.tags}
+            for e in user_entries
+        ],
+        agent_context=[
+            {"type": e.type, "text": e.text, "tags": e.tags, "lifecycle_phases": e.lifecycle_phases}
+            for e in agent_entries
         ],
         knowledge_domains=[
             {"id": d.id, "name": d.name, "tags": d.tags, "post_count": d.post_count}
@@ -177,7 +207,7 @@ async def compose_context(
         trending_context=include_trending or [],
     )
 
-    # Add performance patterns for Discovery and Post-Mortem
+    # Performance patterns only for stages where they're useful
     if stage in ("discovery", "post-mortem", "observatory"):
         context.performance_patterns = await compute_performance_patterns(db)
 

@@ -72,10 +72,26 @@ class MemoryEntry(Base):
     __tablename__ = "memory_entries"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+
+    # WHO provided this — human or agent
+    source: Mapped[str] = mapped_column(String(20), default="user")
+    # "user"  — explicitly curated by the human
+    # "agent" — extracted / derived by agents during conversations
+
+    # WHAT kind of context
     type: Mapped[str] = mapped_column(String(100))
-    # Types: Experience | Research | Collaboration | Philosophy | Current | Goal | Voice
+    # User types  : Experience | Research | Collaboration | Philosophy | Current | Voice | Goal
+    # Agent types : Pattern | Insight | Hypothesis | Finding | Structural
+
     text: Mapped[str] = mapped_column(Text)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    # WHEN to inject (empty = inject at all lifecycle phases)
+    lifecycle_phases: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # e.g. ["discovery"] injects only in Discovery
+    # e.g. ["discovery", "post-mortem"] injects in those two phases
+    # e.g. []            injects everywhere
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 

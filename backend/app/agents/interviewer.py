@@ -10,13 +10,12 @@ Loaded skills: content-extraction + role-specific reference file.
 from app.config import settings
 from agno.agent import Agent
 from agno.memory import MemoryManager
-from agno.models.anthropic import Claude
 from agno.models.openai import OpenAIChat
 from agno.tools.memory import MemoryTools
 
 from app.agents.db import agno_db
 from app.agents.knowledge import get_skills_knowledge
-from app.agents.tools import skill_list, skill_load, skill_load_reference
+from app.agents.tools import skill_list, skill_load, skill_load_reference, web_search_tool, web_fetch_tool
 from app.agents.base import UNIVERSAL_SYSTEM_PROMPT
 
 INTERVIEWER_INSTRUCTIONS = f"""
@@ -27,7 +26,20 @@ You are the Interviewer for BroCoDDE. Your job is extraction — not helping.
 ## Before Your First Message
 1. Use skill_load("content-extraction") to load your core technique guide.
 2. Use skill_load_reference("content-extraction", "role-{{role}}") to load the role-specific guide.
-3. Search your memory for any prior conversations with this user on this domain.
+3. Search your memory (search_memories) for prior conversations with this user on this domain.
+4. Greet with one sharp opening question rooted in what you already know — no preamble.
+
+## Proactive Tool Use — Don't Wait to Be Asked
+- If the user references a paper, article, or concept: use web_fetch_tool to pull it and ground your question in it.
+- If a topic needs context you don't have: use web_search_tool before responding, not after.
+- When a durable insight surfaces: use add_memory immediately — tag it by domain + archetype. Don't batch saves.
+- When the user refines a prior claim: update_memory on the relevant existing entry.
+
+## Memory Lifecycle
+- **Read**: Before your first message, retrieve relevant past extractions and insights.
+- **Write**: Every 2-3 turns when a new insight, analogy, or framework emerges from the user.
+- **Update**: When the user sharpens something they've said before — update that entry.
+- **Tag always**: domain, archetype, role — makes it findable in Discovery later.
 
 ## Core Behavior & Tone
 - Validate what the user says first, then push deeper. Don't just interrogate them cold.
@@ -52,8 +64,14 @@ Adjust your extraction style based on the role selected:
 - REVIEWER: "What's genuinely good? What's overhyped? Where's the gap?"
 - INTERVIEWER: "Walk me through your actual opinion on this. Don't hedge."
 
+## Nudging During Extraction
+- After 2-3 strong exchanges: "Good — we're building depth here."
+- When an insight lands that's sharper than expected: "That's the post. Say that again, slower."
+- Progress signal: "We have 3 solid angles. Two more exchanges and we have enough for a full brief."
+- Natural transition: "This feels complete. Ready to move to Structuring?" — then include [ADVANCE_STAGE] only if they confirm.
+
 ## Knowing When to Stop
-When there's enough material for a full post (at least 5 substantive exchanges), say:
+When there's enough material (at least 5 substantive exchanges), signal clearly:
 "We have sufficient material. Ready to move to Structuring when you are."
 
 Do NOT generate the post. Do NOT write draft prose. Extract only.
@@ -86,13 +104,22 @@ def build_interviewer(
         name="interviewer",
         model=_make_model(),
         instructions=INTERVIEWER_INSTRUCTIONS.replace("{role}", role.lower()),
-        tools=[skill_list, skill_load, skill_load_reference],
+        tools=[
+            MemoryTools(db=agno_db),
+            skill_list,
+            skill_load,
+            skill_load_reference,
+            web_search_tool,
+            web_fetch_tool,
+        ],
         knowledge=get_skills_knowledge(),
         search_knowledge=True,
         db=agno_db,
         memory_manager=memory_manager,
         update_memory_on_run=True,
         add_memories_to_context=True,
+        add_history_to_context=True,
+        num_history_runs=10,
         user_id=user_id,
         session_id=session_id,
         markdown=False,        # Conversational, not formatted

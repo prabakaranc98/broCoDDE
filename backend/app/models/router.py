@@ -17,17 +17,17 @@ OPENROUTER_EXTRA_HEADERS = {
 }
 
 OPENROUTER_MODELS: dict[int, dict[str, str]] = {
-    1: {  # Tier 1 — Fast / Lightweight / Utility
-        "primary": "openai/gpt-5.2-chat",
-        "alt": "qwen/qwen3.5-plus",
-    },
-    2: {  # Tier 2 — Workhorse / Main Agents
+    1: {  # Tier 1 — Standard (grammar, memory writes, utility)
         "primary": "anthropic/claude-sonnet-4.6",
-        "alt": "openai/gpt-5.2",
+        "alt": "anthropic/claude-sonnet-4.6",
     },
-    3: {  # Tier 3 — Deep Reasoning / Strategic
-        "primary": "anthropic/claude-opus-4.6",
-        "alt": "openai/gpt-5.2-pro",
+    2: {  # Tier 2 — Balanced / Majority of Work (Interviewer, Shaper, Analyst normal ops)
+        "primary": "anthropic/claude-sonnet-4.6",        # main workhorse
+        "alt": "anthropic/claude-sonnet-4.6",
+    },
+    3: {  # Tier 3 — Most Capable / Critical Reasoning (Discovery, deep critique, post-mortem)
+        "primary": "anthropic/claude-opus-4.6",          # highest capability for critical tasks
+        "alt": "anthropic/claude-sonnet-4.6",            # fallback if Opus unavailable
     },
 }
 
@@ -55,9 +55,6 @@ TASK_MODEL: dict[str, str] = {
     for task, tier in TASK_TIERS.items()
 }
 
-# Override with alt model for high-volume cheap tasks
-TASK_MODEL["context_compression"] = OPENROUTER_MODELS[1]["alt"]   # qwen3.5-plus
-TASK_MODEL["memory_summarization"] = OPENROUTER_MODELS[1]["alt"]  # qwen3.5-plus
 
 
 # ── Model Factory ─────────────────────────────────────────────────────────────

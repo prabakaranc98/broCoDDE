@@ -28,11 +28,13 @@ class Settings(BaseSettings):
     # All models accessed via https://openrouter.ai/api/v1 (OpenAI-compatible API)
     openrouter_api_key: str = ""
 
-    # ── Model Tier Overrides (optional — defaults defined in router.py) ───────
-    # Set to an OpenRouter model path like "anthropic/claude-opus-4.6" to override
-    tier1_model: str = "openai/gpt-4o-mini"
-    tier2_model: str = "anthropic/claude-3.5-sonnet"
-    tier3_model: str = "anthropic/claude-3.5-sonnet"
+    # ── Model Tier Overrides ──────────────────────────────────────────────────
+    # Tier 1: Standard utility — grammar checks, memory writes
+    # Tier 2: Balanced — Interviewer, Shaper, majority of conversations
+    # Tier 3: Most capable — Strategist Discovery, Analyst post-mortem, deep critique
+    tier1_model: str = "anthropic/claude-sonnet-4.6"          # standard utility tasks
+    tier2_model: str = "anthropic/claude-sonnet-4.6"          # balanced — main conversations
+    tier3_model: str = "anthropic/claude-opus-4.6"            # critical reasoning and analysis
 
     # ── External APIs ─────────────────────────────────────────────────────────
     exa_api_key: str = ""  # https://exa.ai — used for Discovery web search
@@ -54,6 +56,19 @@ class Settings(BaseSettings):
     def parse_cors(cls, v):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("tier1_model", "tier2_model", "tier3_model", mode="before")
+    @classmethod
+    def fallback_empty_model(cls, v, info):
+        """If the env var is set but blank, fall back to the field default."""
+        if isinstance(v, str) and not v.strip():
+            defaults = {
+                "tier1_model": "anthropic/claude-sonnet-4.6",
+                "tier2_model": "anthropic/claude-sonnet-4.6",
+                "tier3_model": "anthropic/claude-opus-4.6",
+            }
+            return defaults.get(info.field_name, v)
         return v
 
     # ── Derived helpers ───────────────────────────────────────────────────────

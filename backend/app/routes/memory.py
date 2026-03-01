@@ -28,8 +28,13 @@ router = APIRouter()
 # ── Identity Memory (Layer 1) ─────────────────────────────────────────────────
 
 @router.get("", response_model=list[MemoryEntryResponse])
-async def list_memory(db: AsyncSession = Depends(get_db)):
-    entries = await get_identity_memory(db)
+async def list_memory(
+    source: str | None = None,          # ?source=user  or ?source=agent
+    lifecycle_phase: str | None = None,  # ?lifecycle_phase=discovery
+    db: AsyncSession = Depends(get_db),
+):
+    """List context entries. Filter by source ('user'|'agent') and/or lifecycle phase."""
+    entries = await get_identity_memory(db, source=source, lifecycle_phase=lifecycle_phase)
     return entries
 
 
@@ -46,15 +51,16 @@ async def edit_memory(
 ):
     entry = await update_memory_entry(db, entry_id, body.get("text", ""))
     if not entry:
-        raise HTTPException(status_code=404, detail="Memory entry not found")
+        raise HTTPException(status_code=404, detail="Context entry not found")
     return entry
 
 
-@router.delete("/{entry_id}", status_code=204)
+@router.delete("/{entry_id}")
 async def remove_memory(entry_id: str, db: AsyncSession = Depends(get_db)):
     deleted = await delete_memory_entry(db, entry_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Memory entry not found")
+        raise HTTPException(status_code=404, detail="Context entry not found")
+    return {"ok": True}
 
 
 # ── Knowledge Domains (Layer 2) ───────────────────────────────────────────────

@@ -6,6 +6,11 @@ import { StatusBar } from "@/components/layout/StatusBar";
 export const metadata: Metadata = {
     title: "BroCoDDE",
     description: "Content Development Life Cycle Engine",
+    icons: {
+        icon: "/favicon.svg",
+        shortcut: "/favicon.svg",
+        apple: "/favicon.svg",
+    },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

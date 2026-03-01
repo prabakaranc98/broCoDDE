@@ -66,8 +66,20 @@ async def skill_load_reference(skill_name: str, reference_name: str) -> str:
 
 # ── Memory Tools ──────────────────────────────────────────────────────────────
 
-async def memory_read_tool(memory_type: str | None = None) -> str:
-    """Read memory entries. Pass memory_type to filter (e.g. 'Experience', 'Research')."""
+async def memory_read_tool(
+    memory_type: str | None = None,
+    source: str | None = None,
+    lifecycle_phase: str | None = None,
+) -> str:
+    """
+    Read context entries.
+
+    Args:
+        memory_type: Filter by type — user types: Experience|Research|Collaboration|Philosophy|Current|Voice|Goal;
+                     agent types: Pattern|Insight|Hypothesis|Finding|Structural.
+        source: 'user' for human-provided context, 'agent' for agent-derived context.
+        lifecycle_phase: Return entries valid for this phase (plus global entries with empty phases).
+    """
     from app.db.database import AsyncSessionLocal
     from app.db.models import MemoryEntry
     from sqlalchemy import select
@@ -76,23 +88,58 @@ async def memory_read_tool(memory_type: str | None = None) -> str:
         query = select(MemoryEntry)
         if memory_type:
             query = query.where(MemoryEntry.type == memory_type)
+        if source:
+            query = query.where(MemoryEntry.source == source)
         result = await db.execute(query.order_by(MemoryEntry.created_at.desc()))
-        entries = result.scalars().all()
+        entries = list(result.scalars().all())
 
-    return "\n".join([f"[{e.type}] {e.text}" for e in entries]) or "No memory entries found."
+    if lifecycle_phase:
+        entries = [
+            e for e in entries
+            if not e.lifecycle_phases or lifecycle_phase in e.lifecycle_phases
+        ]
+
+    if not entries:
+        return "No context entries found."
+
+    lines = []
+    for e in entries:
+        src_label = "USER" if e.source == "user" else "AGENT"
+        lines.append(f"[{src_label}:{e.type}] {e.text}")
+    return "\n".join(lines)
 
 
-async def memory_write_tool(memory_type: str, text: str, tags: list[str] | None = None) -> str:
-    """Write a new memory entry."""
+async def memory_write_tool(
+    memory_type: str,
+    text: str,
+    tags: list[str] | None = None,
+    lifecycle_phases: list[str] | None = None,
+) -> str:
+    """
+    Write an agent-derived context entry (source='agent' always).
+
+    Args:
+        memory_type: Pattern | Insight | Hypothesis | Finding | Structural
+        text: The derived insight or pattern.
+        tags: Tags for searchability (domain, archetype, role, etc.).
+        lifecycle_phases: Which stages to inject this in. Empty = everywhere.
+                          E.g. ["discovery"] = only during Discovery.
+    """
     from app.db.database import AsyncSessionLocal
     from app.db.models import MemoryEntry
 
     async with AsyncSessionLocal() as db:
-        entry = MemoryEntry(type=memory_type, text=text, tags=tags or [])
+        entry = MemoryEntry(
+            source="agent",
+            type=memory_type,
+            text=text,
+            tags=tags or [],
+            lifecycle_phases=lifecycle_phases or [],
+        )
         db.add(entry)
         await db.commit()
 
-    return f"Memory entry written: [{memory_type}] {text[:80]}..."
+    return f"Agent context written: [{memory_type}] {text[:80]}..."
 
 
 # ── Web Search Tool ────────────────────────────────────────────────────────────
@@ -425,7 +472,7 @@ async def compute_patterns_tool(limit: int = 20) -> str:
     for name, avg in _top(by_role):
         lines.append(f"- **{name}**: {avg*100:.1f}%")
 
-    overall_avg = sum(p.save_rate or 0.0 for p in posts) / len(posts)
+    overall_avg = sum(p.metrics.get("save_rate", 0.0) if p.metrics else 0.0 for p in posts) / len(posts)
     lines.append(f"\n**Overall avg save rate:** {overall_avg*100:.1f}%")
 
     return "\n".join(lines)

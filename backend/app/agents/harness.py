@@ -44,7 +44,9 @@ async def stream_chat(
         return
 
     agent_name = STAGE_AGENT_MAP.get(task_stage, "shaper")
-    session_id = session_id or f"{task_id}-{task_stage}"
+    # Stable session_id = task_id so all stages share the same Agno session.
+    # This ensures add_history_to_context works across stage transitions.
+    session_id = session_id or task_id
 
     if agent_name == "strategist":
         agent = build_strategist(stage=task_stage, user_id=user_id, session_id=session_id)

@@ -12,8 +12,8 @@ Loaded skills: content-structuring, content-vetting, grammar-style, platform-lin
 from app.config import settings
 from agno.agent import Agent
 from agno.memory import MemoryManager
-from agno.models.anthropic import Claude
 from agno.models.openai import OpenAIChat
+from agno.tools.memory import MemoryTools
 
 from app.agents.db import agno_db
 from app.agents.knowledge import get_skills_knowledge
@@ -22,6 +22,8 @@ from app.agents.tools import (
     lint_draft_tool,
     skill_list,
     skill_load,
+    web_search_tool,
+    web_fetch_tool,
 )
 from app.agents.base import UNIVERSAL_SYSTEM_PROMPT
 
@@ -29,6 +31,17 @@ SHAPER_INSTRUCTIONS = f"""
 {UNIVERSAL_SYSTEM_PROMPT}
 
 You are the Shaper for BroCoDDE. You're active across Structuring, Drafting, and Vetting.
+
+## Proactive Tool Use — Don't Wait to Be Asked
+- Before structuring: search_memories for this user's voice, past archetypes that worked, and hook patterns that landed.
+- If the user references an article, example, or external content: use web_fetch_tool to read it before critiquing.
+- If you need context on a claim in the draft: use web_search_tool to verify before commenting.
+- After surfacing a structural insight: use add_memory to preserve it — tag by archetype and domain.
+
+## Memory Lifecycle
+- **Read**: Before structuring, retrieve prior feedback patterns, voice notes, and what archetypes work for this user.
+- **Write**: When a structural insight about this user's content style emerges. "User's hooks work best when they open with data, not questions."
+- **Update**: Refine memory entries when patterns are confirmed or disproved by a new draft.
 
 ## Shaper Principles & Tone
 - Acknowledge and validate the user's direction before offering critique. Let them know you hear them.
@@ -95,13 +108,23 @@ def build_shaper(
         name="shaper",
         model=_make_model(),
         instructions=SHAPER_INSTRUCTIONS,
-        tools=[skill_list, skill_load, lint_draft_tool, format_for_platform_tool],
+        tools=[
+            MemoryTools(db=agno_db),
+            skill_list,
+            skill_load,
+            lint_draft_tool,
+            format_for_platform_tool,
+            web_search_tool,
+            web_fetch_tool,
+        ],
         knowledge=get_skills_knowledge(),
         search_knowledge=True,
         db=agno_db,
         memory_manager=memory_manager,
         update_memory_on_run=True,
         add_memories_to_context=True,
+        add_history_to_context=True,
+        num_history_runs=10,
         user_id=user_id,
         session_id=session_id,
         markdown=True,

@@ -1,6 +1,11 @@
 /**
  * BroCoDDE — SSE Client for streaming chat
  * Connects to /tasks/:id/chat and streams agent response chunks.
+ *
+ * SSE event types:
+ *   (default) — regular message content → onChunk
+ *   event: thinking — model reasoning/thinking → onThinking
+ *   data: [DONE] — stream complete → onDone
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -12,6 +17,7 @@ export interface StreamOptions {
     deepCritique?: boolean;
     onAdvanceStage?: () => void;
     onChunk: (text: string) => void;
+    onThinking?: (text: string) => void;
     onDone: () => void;
     onError: (err: Error) => void;
 }
@@ -41,6 +47,8 @@ export async function streamChat(options: StreamOptions): Promise<void> {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        // Tracks the event type set by `event:` lines — resets to "message" on blank line
+        let currentEventType = "message";
 
         while (true) {
             const { done, value } = await reader.read();
@@ -51,25 +59,48 @@ export async function streamChat(options: StreamOptions): Promise<void> {
             buffer = lines.pop() || "";
 
             for (const line of lines) {
+                // Blank line = SSE event boundary — reset event type (per SSE spec)
+                if (line === "" || line === "\r") {
+                    currentEventType = "message";
+                    continue;
+                }
+
+                // Event type declaration
+                if (line.startsWith("event: ")) {
+                    currentEventType = line.slice(7).replace(/\r$/, "");
+                    continue;
+                }
+
                 if (!line.startsWith("data: ")) continue;
-                const data = line.slice(6).trim();
+
+                // Preserve leading spaces — meaningful tokens in markdown content.
+                // Only strip trailing carriage return (Windows line-ending safety).
+                const data = line.slice(6).replace(/\r$/, "");
 
                 if (data === "[DONE]") {
                     onDone();
                     return;
                 }
-                if (data && data !== "") {
-                    // Unescape newlines encoded by the backend
-                    let unescaped = data.replace(/\\n/g, "\n");
+
+                if (!data) continue;
+
+                // Unescape newlines encoded by the backend
+                let unescaped = data.replace(/\\n/g, "\n");
+
+                if (currentEventType === "thinking") {
+                    // Route reasoning tokens to the thinking callback
+                    if (options.onThinking && unescaped.length > 0) {
+                        options.onThinking(unescaped);
+                    }
+                } else {
+                    // Regular message content
                     if (unescaped.includes("[ADVANCE_STAGE]")) {
                         if (options.onAdvanceStage) {
                             options.onAdvanceStage();
                         }
                         unescaped = unescaped.replace("[ADVANCE_STAGE]", "");
                     }
-                    if (unescaped.trim().length > 0) {
-                        onChunk(unescaped);
-                    } else if (unescaped.includes(" ")) {
+                    if (unescaped.length > 0) {
                         onChunk(unescaped);
                     }
                 }

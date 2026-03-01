@@ -1,26 +1,47 @@
 """
-BroCoDDE — Memory Layer Pydantic Models
+BroCoDDE — Context & Memory Layer Pydantic Models
+
+Terminology note:
+  source="user"  → context the human explicitly provided (expertise, voice, goals)
+  source="agent" → context agents derived from conversations and post-mortems
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+# Valid lifecycle phases
+LIFECYCLE_PHASES = [
+    "discovery", "extraction", "structuring", "drafting",
+    "vetting", "ready", "post-mortem",
+]
 
-# ── Memory Entry ──────────────────────────────────────────────────────────────
+# User-provided context types
+USER_CONTEXT_TYPES = ["Experience", "Research", "Collaboration", "Philosophy", "Current", "Voice", "Goal"]
+
+# Agent-derived context types
+AGENT_CONTEXT_TYPES = ["Pattern", "Insight", "Hypothesis", "Finding", "Structural"]
+
+
+# ── Context Entry (replaces MemoryEntry concept) ───────────────────────────────
 
 class MemoryEntryCreate(BaseModel):
     type: str
     text: str
     tags: list[str] = Field(default_factory=list)
+    source: Literal["user", "agent"] = "user"
+    # lifecycle_phases: empty list = inject at all stages
+    lifecycle_phases: list[str] = Field(default_factory=list)
 
 
 class MemoryEntryResponse(BaseModel):
     id: str
+    source: str
     type: str
     text: str
     tags: list[str]
+    lifecycle_phases: list[str]
     created_at: datetime
     updated_at: datetime
 
@@ -77,7 +98,10 @@ class PerformancePatterns(BaseModel):
 # ── Composed Context ──────────────────────────────────────────────────────────
 
 class ComposedContext(BaseModel):
+    # User-provided context: what the human explicitly told the system
     identity_memory: list[dict[str, Any]] = Field(default_factory=list)
+    # Agent-derived context: what agents learned/extracted through conversations
+    agent_context: list[dict[str, Any]] = Field(default_factory=list)
     knowledge_domains: list[dict[str, Any]] = Field(default_factory=list)
     performance_patterns: PerformancePatterns | None = None
     recent_tasks: list[dict[str, Any]] = Field(default_factory=list)
@@ -85,13 +109,25 @@ class ComposedContext(BaseModel):
     task_history: list[dict[str, Any]] = Field(default_factory=list)
 
     def to_prompt_text(self) -> str:
-        """Render context as structured text for injection into agent prompts."""
+        """
+        Render context as structured text for injection into agent system prompts.
+        User-provided context and agent-derived context are rendered separately
+        so agents understand the provenance of each piece of information.
+        """
         parts = []
 
         if self.identity_memory:
-            parts.append("## User Identity")
+            parts.append("## User Context (human-provided)")
+            parts.append("_What the user has explicitly shared about themselves:_")
             for entry in self.identity_memory:
                 parts.append(f"- [{entry.get('type', 'Note')}] {entry.get('text', '')}")
+
+        if self.agent_context:
+            parts.append("\n## Derived Context (agent-learned)")
+            parts.append("_Patterns and insights extracted from past conversations and post-mortems:_")
+            for entry in self.agent_context:
+                tags_str = f" ({', '.join(entry.get('tags', []))})" if entry.get('tags') else ""
+                parts.append(f"- [{entry.get('type', 'Insight')}]{tags_str} {entry.get('text', '')}")
 
         if self.knowledge_domains:
             parts.append("\n## Knowledge Domains")
@@ -101,10 +137,10 @@ class ComposedContext(BaseModel):
 
         if self.performance_patterns and self.performance_patterns.total_posts > 0:
             p = self.performance_patterns
-            parts.append(f"\n## Performance Patterns")
+            parts.append("\n## Performance Patterns")
             parts.append(f"- Total posts: {p.total_posts}, Avg save rate: {p.avg_save_rate:.1%}")
-            if p.top_intent:
-                parts.append(f"- Top intent: {p.top_intent}, Best role: {p.best_role}")
+            for ap in p.archetype_performance[:3]:
+                parts.append(f"  - {ap.archetype}: {ap.avg_save_rate:.1%} save rate ({ap.post_count} posts)")
 
         if self.recent_tasks:
             parts.append("\n## Recent CoDDE Tasks")

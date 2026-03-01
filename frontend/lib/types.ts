@@ -117,6 +117,7 @@ export interface CoddeTask {
     lint_results: LintResults | null;
     skeleton: Skeleton | null;
     chat_history?: ChatMessage[];
+    final_content?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -190,6 +191,7 @@ export interface ChatMessage {
     id: string;
     role: "user" | "agent";
     content: string;
+    thinking?: string;      // reasoning/thinking content — in-memory only, not saved to DB
     agent_name?: string;
     stage?: LifecycleStage;
     timestamp: string;

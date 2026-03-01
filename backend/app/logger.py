@@ -35,6 +35,19 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.addHandler(file_handler)
 
+# ── Silence noisy third-party loggers ─────────────────────────────────────────
+# SQLAlchemy SQL echo, httpx (OpenRouter API calls), OpenAI SDK, Agno internals
+for _noisy in (
+    "sqlalchemy.engine",
+    "sqlalchemy.engine.Engine",
+    "sqlalchemy.pool",
+    "httpx",
+    "httpcore",
+    "openai",
+    "agno",
+):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 
 # ── Middleware ────────────────────────────────────────────────────────────────
 

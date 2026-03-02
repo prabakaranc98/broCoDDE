@@ -5,6 +5,7 @@
  * SSE event types:
  *   (default) — regular message content → onChunk
  *   event: thinking — model reasoning/thinking → onThinking
+ *   event: advance — stage advancement signal → onAdvanceStage
  *   data: [DONE] — stream complete → onDone
  */
 
@@ -19,6 +20,7 @@ export interface StreamOptions {
     onChunk: (text: string) => void;
     onThinking?: (text: string) => void;
     onTitleUpdate?: (title: string) => void;
+    onToolCall?: (toolName: string) => void;
     onDone: () => void;
     onError: (err: Error) => void;
 }
@@ -88,19 +90,29 @@ export async function streamChat(options: StreamOptions): Promise<void> {
                 // Unescape newlines encoded by the backend
                 let unescaped = data.replace(/\\n/g, "\n");
 
-                if (currentEventType === "thinking") {
+                if (currentEventType === "advance") {
+                    // Dedicated stage-advance event — emitted by backend after full stream
+                    // Never split across frames unlike inline [ADVANCE_STAGE] text detection
+                    if (options.onAdvanceStage) {
+                        options.onAdvanceStage();
+                    }
+                } else if (currentEventType === "title") {
+                    // Auto-derived title from first user message
+                    if (options.onTitleUpdate && unescaped.trim()) {
+                        options.onTitleUpdate(unescaped.trim());
+                    }
+                } else if (currentEventType === "tool") {
+                    // Tool call started — data is the raw tool name
+                    if (options.onToolCall) {
+                        options.onToolCall(unescaped.trim());
+                    }
+                } else if (currentEventType === "thinking") {
                     // Route reasoning tokens to the thinking callback
                     if (options.onThinking && unescaped.length > 0) {
                         options.onThinking(unescaped);
                     }
                 } else {
                     // Regular message content
-                    if (unescaped.includes("[ADVANCE_STAGE]")) {
-                        if (options.onAdvanceStage) {
-                            options.onAdvanceStage();
-                        }
-                        unescaped = unescaped.replace("[ADVANCE_STAGE]", "");
-                    }
                     // Auto title update — strip macro, fire callback with extracted title
                     if (unescaped.includes("[TITLE:")) {
                         const titleMatch = unescaped.match(/\[TITLE:\s*([^\]]+)\]/);

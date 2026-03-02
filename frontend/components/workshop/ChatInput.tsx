@@ -173,7 +173,6 @@ export function ChatInput({ onSend, isStreaming, placeholder }: ChatInputProps) 
                     className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted
                      resize-none outline-none min-h-[36px] max-h-[200px] py-1.5 px-1 font-sans leading-relaxed"
                     rows={1}
-                    disabled={isStreaming}
                 />
 
                 <div className="flex items-center gap-1.5 pb-0.5 shrink-0">

@@ -75,7 +75,7 @@ async def get_series(series_id: str, db: AsyncSession = Depends(get_db)):
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
     tasks_result = await db.execute(
-        select(CoddeTask).where(CoddeTask.series_id == series_id)
+        select(CoddeTask).where(CoddeTask.series_id == series_id).order_by(CoddeTask.created_at.desc())
     )
     tasks = tasks_result.scalars().all()
     return {
@@ -86,5 +86,67 @@ async def get_series(series_id: str, db: AsyncSession = Depends(get_db)):
         "icon": series.icon,
         "target_post_count": series.target_post_count,
         "post_count": len(tasks),
-        "tasks": [{"id": t.id, "title": t.title, "stage": t.stage} for t in tasks],
+        "progress_pct": round(min(len(tasks) / series.target_post_count * 100, 100), 1) if series.target_post_count else 0,
+        "tasks": [{"id": t.id, "title": t.title or "Untitled", "stage": t.stage} for t in tasks],
     }
+
+
+class SeriesUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    archetype: str | None = None
+    icon: str | None = None
+    target_post_count: int | None = None
+
+
+@router.patch("/{series_id}", response_model=SeriesResponse)
+async def update_series(series_id: str, data: SeriesUpdate, db: AsyncSession = Depends(get_db)):
+    series = await db.get(Series, series_id)
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(series, field, value)
+    await db.commit()
+    tasks_result = await db.execute(select(CoddeTask).where(CoddeTask.series_id == series_id))
+    count = len(tasks_result.scalars().all())
+    progress = round(min(count / series.target_post_count * 100, 100), 1) if series.target_post_count else 0
+    return SeriesResponse(**series.__dict__, post_count=count, progress_pct=progress)
+
+
+@router.delete("/{series_id}")
+async def delete_series(series_id: str, db: AsyncSession = Depends(get_db)):
+    series = await db.get(Series, series_id)
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    # Unlink tasks (set series_id=None) rather than cascade-delete tasks
+    tasks_result = await db.execute(select(CoddeTask).where(CoddeTask.series_id == series_id))
+    for task in tasks_result.scalars().all():
+        task.series_id = None
+    await db.delete(series)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.patch("/{series_id}/tasks/{task_id}")
+async def assign_task_to_series(series_id: str, task_id: str, db: AsyncSession = Depends(get_db)):
+    """Assign an existing task to this series (or move it from another series)."""
+    series = await db.get(Series, series_id)
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    task = await db.get(CoddeTask, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.series_id = series_id
+    await db.commit()
+    return {"ok": True, "task_id": task_id, "series_id": series_id}
+
+
+@router.delete("/{series_id}/tasks/{task_id}")
+async def remove_task_from_series(series_id: str, task_id: str, db: AsyncSession = Depends(get_db)):
+    """Remove a task from this series (unlink, don't delete)."""
+    task = await db.get(CoddeTask, task_id)
+    if not task or task.series_id != series_id:
+        raise HTTPException(status_code=404, detail="Task not in this series")
+    task.series_id = None
+    await db.commit()
+    return {"ok": True}

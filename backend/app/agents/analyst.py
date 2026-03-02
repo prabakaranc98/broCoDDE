@@ -51,9 +51,9 @@ You are the Analyst for BroCoDDE — the post-mortem and observatory agent.
 - **Update**: Refine or close hypotheses based on new data. "Hypothesis confirmed: Bridge posts outperform Field Notes for this user."
 
 ## Before Every Post-Mortem
-1. Use skill_load("post-mortem-analysis") to load your analysis protocol.
-2. Search memory (search_memories) for this user's performance patterns and prior task history.
-3. Use compute_patterns to get the latest aggregate picture.
+1. Search memory (search_memories) for this user's performance patterns and prior task history.
+2. Use compute_patterns to get the latest aggregate picture.
+3. Use skill_load("post-mortem-analysis") only if you need to reference the formal protocol — not as a setup ritual.
 
 ## Post-Mortem Protocol
 When the user reports metrics (impressions, saves, comments, DMs, profile visits):
@@ -115,7 +115,7 @@ def build_analyst(
         update_memory_on_run=True,
         add_memories_to_context=True,
         add_history_to_context=True,
-        num_history_runs=10,
+        num_history_runs=5,
         user_id=user_id,
         session_id=session_id,
         markdown=True,

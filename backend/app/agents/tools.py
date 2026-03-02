@@ -39,8 +39,16 @@ async def skill_list() -> list[dict[str, str]]:
     return skills
 
 
+_SKILL_MAX_CHARS = 6000  # most skills are 1.5-4KB; only agno-architecture (11KB) gets truncated
+
+
 async def skill_load(skill_name: str) -> str:
-    """Load the full content of a SKILL.md by skill name or directory name."""
+    """
+    Load a SKILL.md by skill name or directory name.
+    Truncated to 6000 chars — covers all stage-specific skills fully.
+    Core rules (archetypes, lint checks, grammar) are already embedded in agent instructions;
+    skill_load provides the full detail and examples when needed.
+    """
     # Try exact directory match first
     skill_path = SKILLS_DIR / skill_name / "SKILL.md"
     if not skill_path.exists():
@@ -53,7 +61,10 @@ async def skill_load(skill_name: str) -> str:
     if not skill_path.exists():
         return f"Skill '{skill_name}' not found."
 
-    return skill_path.read_text()
+    content = skill_path.read_text()
+    if len(content) > _SKILL_MAX_CHARS:
+        content = content[:_SKILL_MAX_CHARS] + "\n...[truncated — use skill_load_reference for examples]"
+    return content
 
 
 async def skill_load_reference(skill_name: str, reference_name: str) -> str:
@@ -61,7 +72,10 @@ async def skill_load_reference(skill_name: str, reference_name: str) -> str:
     ref_path = SKILLS_DIR / skill_name / "references" / f"{reference_name}.md"
     if not ref_path.exists():
         return f"Reference '{reference_name}' not found in skill '{skill_name}'."
-    return ref_path.read_text()
+    content = ref_path.read_text()
+    if len(content) > 4000:
+        content = content[:4000] + "\n...[truncated]"
+    return content
 
 
 # ── Memory Tools ──────────────────────────────────────────────────────────────
@@ -182,13 +196,13 @@ async def web_search_tool(
 
         exa = Exa(api_key=settings.exa_api_key)
 
-        # Build kwargs for search call
+        # Build kwargs for search call — max_characters capped to limit token cost
         search_kwargs: dict = {
             "query": query,
             "type": "auto",
             "num_results": num_results,
             "contents": {
-                "text": {"max_characters": 10000},
+                "text": {"max_characters": 500},
             },
         }
         if category:

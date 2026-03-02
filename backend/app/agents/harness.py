@@ -59,9 +59,49 @@ async def stream_chat(
 
     try:
         # Run Agno agent asynchronously (supports async tools natively)
-        async for event in agent.arun(message, user_id=user_id, stream=True):
-            if hasattr(event, "content") and event.content:
-                yield event.content
+        # stream_events=True emits ToolCallStarted, ReasoningContentDelta, etc.
+        thinking_open = False
+        async for event in agent.arun(message, user_id=user_id, stream=True, stream_events=True):
+            ev = getattr(event, "event", None)
+
+            # ── Tool-call activity markers ──────────────────────────────────
+            if ev == "ToolCallStarted":
+                tool = getattr(event, "tool", None)
+                name = getattr(tool, "tool_name", None) if tool else None
+                if name:
+                    yield f"[TOOL:{name}]"
+
+            elif ev == "MemoryUpdateStarted":
+                yield "[TOOL:memory_update]"
+
+            # ── Reasoning / thinking content (streamed deltas) ───────────────
+            elif ev == "ReasoningContentDelta":
+                rc = getattr(event, "reasoning_content", None)
+                if rc:
+                    if not thinking_open:
+                        yield "<thinking>"
+                        thinking_open = True
+                    yield rc
+
+            elif ev == "ReasoningCompleted":
+                if thinking_open:
+                    yield "</thinking>"
+                    thinking_open = False
+
+            # ── Regular text content (RunContent events only) ────────────────
+            elif ev == "RunContent":
+                # Close any open thinking block before regular content
+                if thinking_open:
+                    yield "</thinking>"
+                    thinking_open = False
+                content = getattr(event, "content", None)
+                if content:
+                    yield content
+
+        # Safety: close thinking if stream ended unexpectedly
+        if thinking_open:
+            yield "</thinking>"
+
     except Exception as e:
         yield f"\n[Agent error: {e}]"
 

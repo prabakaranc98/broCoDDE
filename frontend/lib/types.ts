@@ -148,6 +148,15 @@ export interface MemoryEntry {
     updated_at: string;
 }
 
+export interface AgnoMemory {
+    id: string;
+    text: string;
+    topics: string[];
+    created_at: number;    // Unix timestamp (seconds)
+    updated_at: number | null;
+    evolved: boolean;      // true if meaningfully updated after creation
+}
+
 export interface KnowledgeDomain {
     id: string;
     name: string;

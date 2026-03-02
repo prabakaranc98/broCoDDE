@@ -52,7 +52,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def get_hf_daily_papers(
         self,
         date: str | None = None,
-        limit: int = 10,
+        limit: int = 5,
     ) -> str:
         """
         Fetch today's trending AI/ML papers from HuggingFace Hub daily papers feed.
@@ -64,7 +64,7 @@ class ContentDiscoveryToolkit(Toolkit):
         Args:
             date: Date in YYYY-MM-DD format to get papers from a specific day.
                   Omit for today's papers.
-            limit: Number of papers to return (1-15, default 10).
+            limit: Number of papers to return (1-10, default 5).
 
         Returns:
             Paper titles with upvote counts, AI keywords, summaries, and HF URLs.
@@ -76,7 +76,7 @@ class ContentDiscoveryToolkit(Toolkit):
 
         try:
             api = HfApi(token=self.hf_token)
-            call_kwargs: dict = {"limit": min(max(limit, 1), 15)}
+            call_kwargs: dict = {"limit": min(max(limit, 1), 10)}
             if date:
                 call_kwargs["date"] = date
 
@@ -114,7 +114,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def search_hf_papers(
         self,
         query: str,
-        limit: int = 8,
+        limit: int = 5,
     ) -> str:
         """
         Search HuggingFace Hub for papers on a specific topic or keyword.
@@ -170,7 +170,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def search_hackernews(
         self,
         query: str,
-        limit: int = 8,
+        limit: int = 5,
     ) -> str:
         """
         Search HackerNews for stories and discussions on a topic.
@@ -271,7 +271,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def search_news(
         self,
         query: str,
-        limit: int = 6,
+        limit: int = 4,
     ) -> str:
         """
         Search industry news and articles on a topic using Exa neural search.
@@ -295,7 +295,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def search_research(
         self,
         query: str,
-        limit: int = 6,
+        limit: int = 4,
     ) -> str:
         """
         Search academic papers and research on a topic using Exa neural search.
@@ -319,7 +319,7 @@ class ContentDiscoveryToolkit(Toolkit):
     def search_underrated(
         self,
         query: str,
-        limit: int = 6,
+        limit: int = 4,
     ) -> str:
         """
         Find underrated, niche, or under-covered angles on a topic using Exa.

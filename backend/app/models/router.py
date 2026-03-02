@@ -25,9 +25,9 @@ OPENROUTER_MODELS: dict[int, dict[str, str]] = {
         "primary": "anthropic/claude-sonnet-4.6",        # main workhorse
         "alt": "anthropic/claude-sonnet-4.6",
     },
-    3: {  # Tier 3 — Most Capable / Critical Reasoning (Discovery, deep critique, post-mortem)
-        "primary": "anthropic/claude-opus-4.6",          # highest capability for critical tasks
-        "alt": "anthropic/claude-sonnet-4.6",            # fallback if Opus unavailable
+    3: {  # Tier 3 — Critical Reasoning (Discovery, deep critique, post-mortem)
+        "primary": "anthropic/claude-sonnet-4.6",        # Sonnet is sufficient; Opus via TIER3_MODEL env if needed
+        "alt": "anthropic/claude-sonnet-4.6",
     },
 }
 
@@ -57,6 +57,9 @@ TASK_MODEL: dict[str, str] = {
 
 
 
+# Max output tokens per tier — prevent Agno's 65536 default from exhausting credits
+_TIER_MAX_TOKENS = {1: 2048, 2: 4096, 3: 8192}
+
 # ── Model Factory ─────────────────────────────────────────────────────────────
 
 def get_model(tier: int = 2, use_alt: bool = False) -> OpenAIChat:
@@ -83,6 +86,7 @@ def get_model(tier: int = 2, use_alt: bool = False) -> OpenAIChat:
         api_key=settings.openrouter_api_key or "dummy-key",
         base_url=OPENROUTER_BASE_URL,
         default_headers=OPENROUTER_EXTRA_HEADERS,
+        max_tokens=_TIER_MAX_TOKENS.get(tier, 4096),
     )
 
 
@@ -99,6 +103,7 @@ def get_model_for_task(task_name: str, use_alt: bool = False) -> OpenAIChat:
         api_key=settings.openrouter_api_key or "dummy-key",
         base_url=OPENROUTER_BASE_URL,
         default_headers=OPENROUTER_EXTRA_HEADERS,
+        max_tokens=_TIER_MAX_TOKENS.get(tier, 4096),
     )
 
 

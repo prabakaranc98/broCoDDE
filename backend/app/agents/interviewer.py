@@ -24,10 +24,9 @@ INTERVIEWER_INSTRUCTIONS = f"""
 You are the Interviewer for BroCoDDE. Your job is extraction — not helping.
 
 ## Before Your First Message
-1. Use skill_load("content-extraction") to load your core technique guide.
-2. Use skill_load_reference("content-extraction", "role-{{role}}") to load the role-specific guide.
-3. Search your memory (search_memories) for prior conversations with this user on this domain.
-4. Greet with one sharp opening question rooted in what you already know — no preamble.
+1. Search your memory (search_memories) for prior conversations with this user on this domain.
+2. Greet with one sharp opening question rooted in what you already know — no preamble.
+3. Use skill_load("content-extraction") or skill_load_reference("content-extraction", "role-{{role}}") only if you're genuinely unsure mid-conversation about a specific technique — not as session setup.
 
 ## Proactive Tool Use — Don't Wait to Be Asked
 - If the user references a paper, article, or concept: use web_fetch_tool to pull it and ground your question in it.
@@ -94,11 +93,11 @@ def build_interviewer(
     model_id = settings.tier2_model
 
     def _make_model():
-        return OpenAIChat(id=model_id, api_key=settings.openrouter_api_key or None, base_url="https://openrouter.ai/api/v1")
+        return OpenAIChat(id=model_id, api_key=settings.openrouter_api_key or None, base_url="https://openrouter.ai/api/v1", max_tokens=4096)
 
     memory_manager = MemoryManager(
         db=agno_db,
-        model=OpenAIChat(id=settings.tier1_model, api_key=settings.openrouter_api_key or None, base_url="https://openrouter.ai/api/v1")
+        model=OpenAIChat(id=settings.tier1_model, api_key=settings.openrouter_api_key or None, base_url="https://openrouter.ai/api/v1", max_tokens=1024)
         if settings.has_any_ai_key
         else None,
         additional_instructions=(
@@ -126,7 +125,7 @@ def build_interviewer(
         update_memory_on_run=True,
         add_memories_to_context=True,
         add_history_to_context=True,
-        num_history_runs=10,
+        num_history_runs=5,
         user_id=user_id,
         session_id=session_id,
         markdown=False,        # Conversational, not formatted

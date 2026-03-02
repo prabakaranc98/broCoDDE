@@ -67,12 +67,23 @@ export const api = {
 
     series: {
         list: () => request<import("./types").Series[]>("/series"),
-        get: (id: string) => request<import("./types").Series & { tasks: any[] }>(`/series/${id}`),
-        create: (data: { name: string; description?: string; archetype?: string; icon?: string }) =>
+        get: (id: string) => request<import("./types").Series & { tasks: { id: string; title: string; stage: string }[] }>(`/series/${id}`),
+        create: (data: { name: string; description?: string; archetype?: string; icon?: string; target_post_count?: number }) =>
             request<import("./types").Series>("/series", {
                 method: "POST",
                 body: JSON.stringify(data),
             }),
+        update: (id: string, data: { name?: string; description?: string; archetype?: string; icon?: string; target_post_count?: number }) =>
+            request<import("./types").Series>(`/series/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify(data),
+            }),
+        delete: (id: string) =>
+            request<{ ok: boolean }>(`/series/${id}`, { method: "DELETE" }),
+        assignTask: (seriesId: string, taskId: string) =>
+            request<{ ok: boolean }>(`/series/${seriesId}/tasks/${taskId}`, { method: "PATCH" }),
+        removeTask: (seriesId: string, taskId: string) =>
+            request<{ ok: boolean }>(`/series/${seriesId}/tasks/${taskId}`, { method: "DELETE" }),
     },
 
     memory: {
@@ -89,6 +100,8 @@ export const api = {
             }),
         delete: (id: string) =>
             fetch(`${BASE_URL}/memory/${id}`, { method: "DELETE" }),
+        agnoList: (userId = "default_user") =>
+            request<import("./types").AgnoMemory[]>(`/memory/agno?user_id=${userId}`),
         domains: {
             list: () => request<import("./types").KnowledgeDomain[]>("/memory/domains"),
             create: (data: { name: string; color?: string; tags?: string[] }) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { streamChat } from "@/lib/sse";
@@ -57,16 +57,25 @@ const MARKDOWN_COMPONENTS = {
             {...props}
         />
     ),
-    code: ({ node, inline, ...props }: any) =>
+    // Block code: pre wraps code — pre component handles the container to avoid <pre> inside <p>
+    pre: ({ node, children, ...props }: any) => (
+        <pre
+            className="bg-surface-800 text-text-secondary p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono border border-border-subtle"
+            {...props}
+        >
+            {children}
+        </pre>
+    ),
+    code: ({ node, inline, children, ...props }: any) =>
         inline ? (
             <code
                 className="bg-surface-800 text-gold-200 px-1 py-0.5 rounded text-xs font-mono"
                 {...props}
-            />
+            >
+                {children}
+            </code>
         ) : (
-            <pre className="bg-surface-800 text-text-secondary p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono border border-border-subtle">
-                <code {...props} />
-            </pre>
+            <code {...props}>{children}</code>
         ),
     // Links — open in new tab
     a: ({ node, href, children, ...props }: any) => (
@@ -115,6 +124,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingContent, setStreamingContent] = useState("");
     const [thinkingActive, setThinkingActive] = useState(false);
+    const [toolLog, setToolLog] = useState<string[]>([]);  // tool calls fired this stream
     const thinkingRef = useRef("");           // accumulates thinking during current stream
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const proactiveTriggered = useRef(false);
@@ -142,6 +152,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
 
         setIsStreaming(true);
         setStreamingContent("");
+        setToolLog([]);
         thinkingRef.current = "";
         let accumulated = "";
 
@@ -152,6 +163,9 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             onTitleUpdate: (title) => {
                 setTask(prev => prev ? { ...prev, title } : prev);
                 api.tasks.update(taskId, { title }).catch(console.error);
+            },
+            onToolCall: (name) => {
+                setToolLog(prev => prev.includes(name) ? prev : [...prev, name]);
             },
             onThinking: (chunk) => {
                 thinkingRef.current += chunk;
@@ -176,11 +190,13 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                 setIsStreaming(false);
                 setStreamingContent("");
                 setThinkingActive(false);
+                setToolLog([]);
             },
             onError: () => {
                 setIsStreaming(false);
                 setStreamingContent("");
                 setThinkingActive(false);
+                setToolLog([]);
                 proactiveTriggered.current = false;
             },
         });
@@ -212,6 +228,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
         setMessages(prev => [...prev, userMsg]);
         setIsStreaming(true);
         setStreamingContent("");
+        setToolLog([]);
         thinkingRef.current = "";
 
         let accumulated = "";
@@ -223,6 +240,9 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             onTitleUpdate: (title) => {
                 setTask(prev => prev ? { ...prev, title } : prev);
                 api.tasks.update(taskId, { title }).catch(console.error);
+            },
+            onToolCall: (name) => {
+                setToolLog(prev => prev.includes(name) ? prev : [...prev, name]);
             },
             onThinking: (chunk) => {
                 thinkingRef.current += chunk;
@@ -249,6 +269,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                 setIsStreaming(false);
                 setStreamingContent("");
                 setThinkingActive(false);
+                setToolLog([]);
             },
             onError: (err) => {
                 setMessages(prev => [...prev, {
@@ -262,6 +283,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                 setIsStreaming(false);
                 setStreamingContent("");
                 setThinkingActive(false);
+                setToolLog([]);
             },
         });
     }, [task, taskId, advanceStage]);
@@ -299,31 +321,14 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                     <MessageBubble key={msg.id} message={msg} />
                 ))}
 
-                {/* ── Thinking indicator — shown while reasoning, before content starts ── */}
-                {isStreaming && thinkingActive && (
-                    <div className="flex gap-3">
-                        <div className="w-6 h-6 rounded bg-gold-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-gold-400 text-xs">{agentInitial(task.stage)}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 text-xs text-text-muted/70 font-mono mb-1">
-                                <span className="flex gap-0.5 items-center">
-                                    {[0, 150, 300].map(d => (
-                                        <span
-                                            key={d}
-                                            className="w-1 h-1 rounded-full bg-gold-400/50 animate-pulse"
-                                            style={{ animationDelay: `${d}ms` }}
-                                        />
-                                    ))}
-                                </span>
-                                <span>Reasoning…</span>
-                            </div>
-                            {/* Last line of thinking as a subtle preview */}
-                            <div className="text-[11px] text-text-muted/30 font-mono italic truncate max-w-md">
-                                {thinkingRef.current.trim().split("\n").filter(Boolean).at(-1) || ""}
-                            </div>
-                        </div>
-                    </div>
+                {/* ── Loading indicator with collapsible activity details ── */}
+                {isStreaming && !streamingContent && (
+                    <StreamingIndicator
+                        stage={task.stage}
+                        toolLog={toolLog}
+                        thinkingActive={thinkingActive}
+                        thinkingRef={thinkingRef}
+                    />
                 )}
 
                 {/* ── Streaming response — rendered as markdown ── */}
@@ -346,23 +351,6 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                     </div>
                 )}
 
-                {/* Typing indicator — waiting for first chunk, no thinking either */}
-                {isStreaming && !streamingContent && !thinkingActive && (
-                    <div className="flex gap-3">
-                        <div className="w-6 h-6 rounded bg-gold-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-gold-400 text-xs">{agentInitial(task.stage)}</span>
-                        </div>
-                        <div className="flex gap-1 items-center py-1">
-                            {[0, 150, 300].map(d => (
-                                <div
-                                    key={d}
-                                    className="w-1.5 h-1.5 rounded-full bg-gold-400/60 animate-bounce"
-                                    style={{ animationDelay: `${d}ms` }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 <div ref={messagesEndRef} />
             </div>
@@ -400,19 +388,22 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     const [thinkingOpen, setThinkingOpen] = useState(false);
 
     return (
-        <div className={clsx("flex gap-3", isUser && "flex-row-reverse")}>
+        <div className={clsx("flex gap-3 items-end", isUser && "flex-row-reverse")}>
+            {/* Avatar — hidden for user (bubble speaks for itself) */}
+            {!isUser && (
+                <div className="w-6 h-6 rounded bg-gold-500/20 flex items-center justify-center shrink-0 mb-0.5 text-xs text-gold-400">
+                    {message.agent_name?.[0] || "A"}
+                </div>
+            )}
             <div className={clsx(
-                "w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5 text-xs",
-                isUser ? "bg-surface-700 text-text-muted" : "bg-gold-500/20 text-gold-400"
-            )}>
-                {isUser ? "U" : (message.agent_name?.[0] || "A")}
-            </div>
-            <div className={clsx(
-                "flex-1 text-sm min-w-0 overflow-hidden",
-                isUser ? "text-text-primary text-right" : "text-text-secondary"
+                "min-w-0",
+                isUser ? "flex justify-end" : "flex-1 text-sm text-text-secondary"
             )}>
                 {isUser ? (
-                    <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                    // ── User bubble — contained, compact, right-aligned ──
+                    <div className="max-w-[72%] bg-surface-700 border border-border-subtle rounded-2xl rounded-br-sm px-3.5 py-2 text-sm text-text-primary leading-relaxed whitespace-pre-wrap break-words">
+                        {message.content}
+                    </div>
                 ) : (
                     <>
                         {/* Thinking — collapsible, frontier style */}
@@ -456,13 +447,95 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     );
 }
 
+// ── Streaming activity indicator ───────────────────────────────────────────────
+// Collapsed by default — just bounce dots. Expand to see tool calls + reasoning.
+
+function StreamingIndicator({
+    stage,
+    toolLog,
+    thinkingActive,
+    thinkingRef,
+}: {
+    stage: LifecycleStage;
+    toolLog: string[];
+    thinkingActive: boolean;
+    thinkingRef: React.MutableRefObject<string>;
+}) {
+    const [open, setOpen] = useState(false);
+    const hasActivity = toolLog.length > 0 || thinkingActive;
+
+    return (
+        <div className="flex gap-3">
+            <div className="w-6 h-6 rounded bg-gold-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-gold-400 text-xs">{agentInitial(stage)}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+                {/* Primary row: bounce dots + optional expand toggle */}
+                <div className="flex items-center gap-2 py-1">
+                    <div className="flex gap-1 items-center">
+                        {[0, 150, 300].map(d => (
+                            <div
+                                key={d}
+                                className="w-1.5 h-1.5 rounded-full bg-gold-400/60 animate-bounce"
+                                style={{ animationDelay: `${d}ms` }}
+                            />
+                        ))}
+                    </div>
+                    {hasActivity && (
+                        <button
+                            onClick={() => setOpen(o => !o)}
+                            className="flex items-center gap-0.5 text-[10px] text-text-muted/35 hover:text-text-muted/60 transition-colors font-mono"
+                        >
+                            {open
+                                ? <ChevronDown size={9} />
+                                : <ChevronRight size={9} />
+                            }
+                            <span>{open ? "hide" : "details"}</span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Expandable details — tool calls + reasoning snippet */}
+                {open && hasActivity && (
+                    <div className="mt-0.5 pl-1 border-l border-border-subtle/30 space-y-1">
+                        {toolLog.map((name, i) => {
+                            const isActive = i === toolLog.length - 1 && thinkingActive === false;
+                            return (
+                                <div key={name} className="flex items-center gap-1.5">
+                                    <span className={clsx(
+                                        "text-[9px] font-mono px-1.5 py-px rounded border",
+                                        isActive
+                                            ? "border-gold-400/30 text-gold-400/50 bg-gold-500/5"
+                                            : "border-border-subtle/30 text-text-muted/25"
+                                    )}>
+                                        {friendlyToolName(name)}
+                                    </span>
+                                    {!isActive && (
+                                        <span className="text-[8px] text-text-muted/20">✓</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {thinkingActive && (
+                            <div className="text-[9px] text-text-muted/30 font-mono italic truncate max-w-xs">
+                                {thinkingRef.current.trim().split("\n").filter(Boolean).at(-1) || "Reasoning…"}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getAgentName(stage: LifecycleStage): string {
     const map: Record<LifecycleStage, string> = {
         discovery: "Strategist",
         extraction: "Interviewer",
-        structuring: "Strategist",
+        structuring: "Shaper",
         drafting: "Shaper",
         vetting: "Shaper",
         ready: "Shaper",
@@ -487,13 +560,39 @@ function stagePrompt(stage: LifecycleStage): string {
     const map: Record<LifecycleStage, string> = {
         discovery: "The Strategist opens with a brief — three angles worth exploring based on your domains, performance, and what's trending.",
         extraction: "The Interviewer pulls insight out of you. One question at a time. Be specific.",
-        structuring: "The Strategist proposes a skeleton — archetype, hook, three key points, landing.",
+        structuring: "The Shaper proposes a skeleton — archetype, hook, three key points, landing.",
         drafting: "You write. Ask the Shaper for feedback on specific choices.",
         vetting: "Paste your draft. The Shaper runs all six lint checks using AI.",
         ready: "Publish-ready. Use the Shaper for platform formatting.",
         "post-mortem": "Share your metrics. The Analyst does a causal breakdown.",
     };
     return map[stage] || "Start chatting.";
+}
+
+function friendlyToolName(raw: string): string {
+    const map: Record<string, string> = {
+        get_hf_daily_papers: "Scanning today's papers",
+        search_hf_papers: "Searching HF papers",
+        search_hackernews: "Checking HackerNews",
+        search_news: "Scanning tech news",
+        search_research: "Searching research",
+        search_underrated: "Finding niche angles",
+        compute_patterns: "Computing your patterns",
+        compute_patterns_tool: "Computing your patterns",
+        search_memories: "Reading memory",
+        add_memory: "Writing to memory",
+        update_memory: "Updating memory",
+        memory_update: "Updating memory",
+        web_search: "Web search",
+        web_search_tool: "Web search",
+        web_fetch: "Fetching article",
+        web_fetch_tool: "Fetching article",
+        skill_load: "Loading skill",
+        lint_draft_tool: "Running lint checks",
+        export_task_tool: "Exporting task",
+        format_for_platform_tool: "Formatting for platform",
+    };
+    return map[raw] ?? raw.replace(/_/g, " ");
 }
 
 function inputPlaceholder(stage: LifecycleStage): string {

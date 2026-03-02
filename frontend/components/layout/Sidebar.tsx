@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, ListTodo, Telescope, Brain, Layers, Plus } from "lucide-react";
 import { api } from "@/lib/api";
-import type { CoddeTask } from "@/lib/types";
+import type { CoddeTask, Series } from "@/lib/types";
 import clsx from "clsx";
 
 const NAV = [
@@ -19,6 +19,7 @@ const NAV = [
 export function Sidebar() {
     const path = usePathname();
     const [recentTasks, setRecentTasks] = useState<CoddeTask[]>([]);
+    const [seriesMap, setSeriesMap] = useState<Record<string, Series>>({});
     const [stats, setStats] = useState({ posts: 0, saves: 0, queue: 0 });
 
     // Active task: the most recently opened workshop task
@@ -34,6 +35,12 @@ export function Sidebar() {
                 saves: 0, // populated from observatory in a full impl
                 queue: tasks.filter(t => t.stage === "ready").length,
             });
+        }).catch(() => { });
+        // Load series for badge display
+        api.series.list().then(list => {
+            const m: Record<string, Series> = {};
+            list.forEach(s => { m[s.id] = s; });
+            setSeriesMap(m);
         }).catch(() => { });
     }, [path]); // refresh on navigation
 
@@ -92,21 +99,28 @@ export function Sidebar() {
                         Recent
                     </div>
                     <div className="flex flex-col gap-0.5">
-                        {recentTasks.map(t => (
-                            <Link
-                                key={t.id}
-                                href={`/workshop/${t.id}`}
-                                className={clsx(
-                                    "flex items-center justify-between px-2 py-1.5 rounded text-xs group",
-                                    path === `/workshop/${t.id}` ? "bg-surface-700 text-text-primary" : "text-text-muted hover:bg-surface-800 hover:text-text-secondary"
-                                )}
-                            >
-                                <span className="truncate flex-1">
-                                    {t.title || <em className="opacity-50">Untitled</em>}
-                                </span>
-                                <span className="ml-1 opacity-50 shrink-0">›</span>
-                            </Link>
-                        ))}
+                        {recentTasks.map(t => {
+                            const s = t.series_id ? seriesMap[t.series_id] : null;
+                            return (
+                                <Link
+                                    key={t.id}
+                                    href={`/workshop/${t.id}`}
+                                    className={clsx(
+                                        "flex flex-col px-2 py-1.5 rounded text-xs group",
+                                        path === `/workshop/${t.id}` ? "bg-surface-700 text-text-primary" : "text-text-muted hover:bg-surface-800 hover:text-text-secondary"
+                                    )}
+                                >
+                                    <span className="truncate">
+                                        {t.title || <em className="opacity-50">Untitled</em>}
+                                    </span>
+                                    {s && (
+                                        <span className="text-2xs text-gold-400/50 font-mono truncate mt-0.5">
+                                            {s.icon ? `${s.icon} ` : ""}{s.name}
+                                        </span>
+                                    )}
+                                </Link>
+                            );
+                        })}
                     </div>
                 </div>
             )}

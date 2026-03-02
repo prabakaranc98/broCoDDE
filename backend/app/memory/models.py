@@ -48,6 +48,17 @@ class MemoryEntryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Agno Agent Memory (auto-written by MemoryManager) ────────────────────────
+
+class AgnoMemoryResponse(BaseModel):
+    id: str
+    text: str
+    topics: list[str]
+    created_at: int       # Unix timestamp (seconds)
+    updated_at: int | None
+    evolved: bool         # True if updated meaningfully after creation
+
+
 # ── Knowledge Domain ──────────────────────────────────────────────────────────
 
 class KnowledgeDomainCreate(BaseModel):

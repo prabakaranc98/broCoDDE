@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.harness import stream_chat
 from app.db.database import get_db
-from app.db.models import CoddeTask
+from app.db.models import CoddeTask, Series
 
 router = APIRouter()
 
@@ -132,6 +132,8 @@ async def chat(
         in_thinking = False
         clean_message = ""  # non-thinking content — this is what gets saved to history
 
+        should_advance = False
+
         try:
             async for chunk in stream_chat(
                 message=body.message,
@@ -146,12 +148,33 @@ async def chat(
                 if not chunk:
                     continue
 
+                # Fast-path: harness yields [TOOL:name] as a complete standalone chunk.
+                # Intercept here before the drain buffer can split the marker mid-token.
+                if chunk.startswith("[TOOL:") and chunk.endswith("]") and "\n" not in chunk:
+                    yield f"event: tool\ndata: {chunk[6:-1]}\n\n"
+                    continue
+
                 buf += chunk
                 segments, buf, in_thinking = _drain(buf, in_thinking)
 
                 for seg_type, text in segments:
                     if not text:
                         continue
+                    if seg_type == "message" and "[ADVANCE_STAGE]" in text:
+                        text = text.replace("[ADVANCE_STAGE]", "")
+                        should_advance = True
+                        if not text.strip():
+                            continue
+                    # Intercept [TOOL:name] markers — emit as dedicated SSE event, not content
+                    import re as _re_tool
+                    if seg_type == "message":
+                        tool_markers = _re_tool.findall(r'\[TOOL:([^\]]+)\]', text)
+                        if tool_markers:
+                            for tool_name in tool_markers:
+                                yield f"event: tool\ndata: {tool_name}\n\n"
+                            text = _re_tool.sub(r'\[TOOL:[^\]]+\]', '', text)
+                            if not text.strip():
+                                continue
                     escaped = text.replace("\n", "\\n")
                     if seg_type == "thinking":
                         yield f"event: thinking\ndata: {escaped}\n\n"
@@ -161,16 +184,29 @@ async def chat(
 
             # Flush remaining buffer
             if buf:
-                escaped = buf.replace("\n", "\\n")
                 if in_thinking:
+                    escaped = buf.replace("\n", "\\n")
                     yield f"event: thinking\ndata: {escaped}\n\n"
                 else:
-                    clean_message += buf
-                    yield f"data: {escaped}\n\n"
+                    import re as _re_flush
+                    if "[ADVANCE_STAGE]" in buf:
+                        buf = buf.replace("[ADVANCE_STAGE]", "").strip()
+                        should_advance = True
+                    # Strip any [TOOL:...] markers that ended up in the flush buffer
+                    buf = _re_flush.sub(r'\[TOOL:[^\]]+\]', '', buf).strip()
+                    if buf:
+                        escaped = buf.replace("\n", "\\n")
+                        clean_message += buf
+                        yield f"data: {escaped}\n\n"
 
-            # ── Strip [TITLE: ...] macro from clean_message before saving ──
+            # ── Strip macros from clean_message before saving ──
             import re as _re
+            # Safety net: catch [ADVANCE_STAGE] if split across chunks
+            if "[ADVANCE_STAGE]" in clean_message:
+                should_advance = True
+                clean_message = clean_message.replace("[ADVANCE_STAGE]", "").strip()
             clean_message = _re.sub(r'\s*\[TITLE:[^\]]+\]\s*', ' ', clean_message).strip()
+            clean_message = _re.sub(r'\s*\[TOOL:[^\]]+\]\s*', '', clean_message).strip()
 
             # ── Save clean chat history (no thinking tags) ─────────────────
             history = list(task.chat_history or [])
@@ -189,15 +225,52 @@ async def chat(
             })
 
             from app.db.database import AsyncSessionLocal
+            auto_title: str | None = None
             async with AsyncSessionLocal() as session:
                 db_task = await session.get(CoddeTask, task_id)
                 if db_task:
                     db_task.chat_history = history
+                    # ── Auto-derive title from first real user message ──────────────
+                    # Only fires when title is still blank/Untitled and this is a real message
+                    current_title = (db_task.title or "").strip()
+                    is_real_msg = not body.message.startswith("[AUTO_OPEN]") and body.message.strip()
+                    if is_real_msg and current_title.lower() in ("", "untitled"):
+                        raw = body.message.strip()
+                        # Truncate at word boundary ≤ 60 chars
+                        if len(raw) > 60:
+                            raw = raw[:60].rsplit(" ", 1)[0]
+                        derived = raw.strip(".,!?—:").strip()
+                        if derived:
+                            db_task.title = derived
+                            auto_title = derived
+
+                    # ── Auto-assign to series by domain ────────────────────────────
+                    # If task has a domain but no series, find a series whose name
+                    # overlaps with the domain string (case-insensitive substring).
+                    if not db_task.series_id and db_task.domain:
+                        from sqlalchemy import select as _select
+                        domain_lc = db_task.domain.lower()
+                        series_rows = await session.execute(_select(Series))
+                        for s in series_rows.scalars().all():
+                            s_lc = s.name.lower()
+                            if domain_lc in s_lc or s_lc in domain_lc:
+                                db_task.series_id = s.id
+                                break
+
                     await session.commit()
 
         except Exception as e:
             logger.error(f"Stream error on task {task_id}: {str(e)}", exc_info=True)
             yield f"data: [AgentOS Error: {str(e)}]\n\n"
+
+        # Emit title update event so the sidebar/header refresh without a reload
+        if auto_title:
+            escaped_title = auto_title.replace("\n", " ")
+            yield f"event: title\ndata: {escaped_title}\n\n"
+
+        # Emit stage advance event BEFORE [DONE] so frontend processes it first
+        if should_advance:
+            yield "event: advance\ndata: next\n\n"
 
         yield "data: [DONE]\n\n"
 

@@ -85,7 +85,16 @@ The first thing the user sees should be 3 sharp, specific content angles.
 - Connect what the user says back to their content history and performance patterns.
 - Name archetypes when you see them: Bridge, Field Note, Framework Drop, Micro-Learning, etc.
 - Push back if the direction is too broad.
-- When there's enough material, recommend advancing to Extraction.
+
+## Stage Advancement — Discovery → Extraction
+**Completion criteria (ALL must be true):**
+- A specific content angle has been identified (not just a broad topic).
+- The user has engaged positively with that angle (confirmed, elaborated, or asked to continue with it).
+- An archetype has been named or strongly implied.
+
+**When criteria are met:** emit `[TITLE: ...]` with the angle title, then in the same response include a one-line transition ("Moving to Extraction now — let's pull the specifics.") and end with `[ADVANCE_STAGE]`. Do not ask "are you ready?" and wait for a reply. The user's engagement with the angle IS confirmation.
+
+**When criteria are NOT met:** keep exploring. Don't advance until there's a real angle, not just a topic.
 """
 
 STRUCTURING_INSTRUCTIONS = f"""

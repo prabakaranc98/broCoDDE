@@ -18,6 +18,7 @@ export interface StreamOptions {
     onAdvanceStage?: () => void;
     onChunk: (text: string) => void;
     onThinking?: (text: string) => void;
+    onTitleUpdate?: (title: string) => void;
     onDone: () => void;
     onError: (err: Error) => void;
 }
@@ -99,6 +100,17 @@ export async function streamChat(options: StreamOptions): Promise<void> {
                             options.onAdvanceStage();
                         }
                         unescaped = unescaped.replace("[ADVANCE_STAGE]", "");
+                    }
+                    // Auto title update — strip macro, fire callback with extracted title
+                    if (unescaped.includes("[TITLE:")) {
+                        const titleMatch = unescaped.match(/\[TITLE:\s*([^\]]+)\]/);
+                        if (titleMatch) {
+                            const extracted = titleMatch[1].trim();
+                            if (options.onTitleUpdate) {
+                                options.onTitleUpdate(extracted);
+                            }
+                        }
+                        unescaped = unescaped.replace(/\s*\[TITLE:[^\]]+\]\s*/g, " ").trim();
                     }
                     if (unescaped.length > 0) {
                         onChunk(unescaped);

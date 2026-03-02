@@ -149,6 +149,10 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             taskId,
             message: `[AUTO_OPEN] New session started. Role: ${task.role || "creator"}, Intent: ${task.intent || "teach"}, Domain: ${task.domain || "general"}. Open with a Discovery brief — scan your memory, run compute_patterns, then present 3 specific content angles.`,
             onAdvanceStage: () => {},
+            onTitleUpdate: (title) => {
+                setTask(prev => prev ? { ...prev, title } : prev);
+                api.tasks.update(taskId, { title }).catch(console.error);
+            },
             onThinking: (chunk) => {
                 thinkingRef.current += chunk;
                 setThinkingActive(true);
@@ -216,6 +220,10 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
             taskId,
             message: text,
             onAdvanceStage: () => advanceStage(),
+            onTitleUpdate: (title) => {
+                setTask(prev => prev ? { ...prev, title } : prev);
+                api.tasks.update(taskId, { title }).catch(console.error);
+            },
             onThinking: (chunk) => {
                 thinkingRef.current += chunk;
                 setThinkingActive(true);

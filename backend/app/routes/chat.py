@@ -168,6 +168,10 @@ async def chat(
                     clean_message += buf
                     yield f"data: {escaped}\n\n"
 
+            # ── Strip [TITLE: ...] macro from clean_message before saving ──
+            import re as _re
+            clean_message = _re.sub(r'\s*\[TITLE:[^\]]+\]\s*', ' ', clean_message).strip()
+
             # ── Save clean chat history (no thinking tags) ─────────────────
             history = list(task.chat_history or [])
             if not body.message.startswith("[AUTO_OPEN]"):

@@ -210,7 +210,8 @@ async def chat(
 
             # ── Save clean chat history (no thinking tags) ─────────────────
             history = list(task.chat_history or [])
-            if not body.message.startswith("[AUTO_OPEN]"):
+            is_auto_msg = body.message.startswith("[AUTO_OPEN]") or body.message.startswith("[AUTO_SPARK]")
+            if not is_auto_msg:
                 history.append({
                     "id": f"msg_u_{datetime.utcnow().timestamp()}",
                     "role": "user",
@@ -233,7 +234,7 @@ async def chat(
                     # ── Auto-derive title from first real user message ──────────────
                     # Only fires when title is still blank/Untitled and this is a real message
                     current_title = (db_task.title or "").strip()
-                    is_real_msg = not body.message.startswith("[AUTO_OPEN]") and body.message.strip()
+                    is_real_msg = not is_auto_msg and body.message.strip()
                     if is_real_msg and current_title.lower() in ("", "untitled"):
                         raw = body.message.strip()
                         # Truncate at word boundary ≤ 60 chars

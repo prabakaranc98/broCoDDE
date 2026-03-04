@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.database import create_tables
 from app.db.seed import seed_demo_data
-from app.routes import chat, memory, metrics, series, skills, tasks, voice
+from app.routes import chat, concepts, discovery, memory, metrics, series, skills, tasks, voice
 
 
 @asynccontextmanager
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="BroCoDDE API",
     version="0.4.0",
-    description="Content Development Life Cycle Engine — Agent Backend",
+    description="Personal Knowledge Engine — Discovery & Micro-Learning Agent Backend",
     lifespan=lifespan,
 )
 
@@ -68,6 +68,8 @@ app.include_router(memory.router, prefix="/memory", tags=["memory"])
 app.include_router(metrics.router, tags=["metrics"])
 app.include_router(series.router, prefix="/series", tags=["series"])
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
+app.include_router(concepts.router, prefix="/concepts", tags=["concepts"])
+app.include_router(discovery.router, prefix="/discovery", tags=["discovery"])
 app.include_router(voice.router, tags=["voice"])
 
 

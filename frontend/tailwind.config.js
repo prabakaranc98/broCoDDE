@@ -8,30 +8,30 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                // BroCoDDE dark IDE palette
+                // BroCoDDE monochrome palette
                 surface: {
-                    950: "#0a0907",
-                    900: "#0f0e0b",
-                    800: "#1a1814",
-                    700: "#252219",
-                    600: "#302d22",
+                    950: "#080808",
+                    900: "#101010",
+                    800: "#181818",
+                    700: "#212121",
+                    600: "#2a2a2a",
                 },
                 border: {
-                    subtle: "#2a2620",
-                    default: "#3d3828",
-                    emphasis: "#524d3a",
+                    subtle: "#262626",
+                    default: "#3a3a3a",
+                    emphasis: "#525252",
                 },
                 gold: {
-                    300: "#e8c97d",
-                    400: "#d4a843",
-                    500: "#b8902f",
-                    600: "#9a7520",
+                    300: "#ebebeb",
+                    400: "#d8d8d8",
+                    500: "#b8b8b8",
+                    600: "#909090",
                 },
                 text: {
-                    primary: "#f0ead8",
-                    secondary: "#a89d7e",
-                    muted: "#6b6252",
-                    inverse: "#0a0907",
+                    primary: "#f5f5f5",
+                    secondary: "#c0c0c0",
+                    muted: "#787878",
+                    inverse: "#080808",
                 },
                 stage: {
                     discovery: "#4f7ec8",
@@ -52,7 +52,7 @@ module.exports = {
                 mono: ["JetBrains Mono", "Fira Code", "monospace"],
             },
             fontSize: {
-                "2xs": ["0.65rem", { lineHeight: "1rem" }],
+                "2xs": ["0.72rem", { lineHeight: "1.1rem" }],
             },
             animation: {
                 "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

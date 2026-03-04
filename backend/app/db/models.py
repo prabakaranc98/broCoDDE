@@ -45,9 +45,14 @@ class CoddeTask(Base):
     domain: Mapped[str | None] = mapped_column(String(200))
     series_id: Mapped[str | None] = mapped_column(ForeignKey("series.id"), nullable=True)
 
+    # Task type: "deep" (7-stage pipeline) or "spark" (Feynman loop)
+    task_type: Mapped[str] = mapped_column(String(20), default="deep")
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # Lifecycle stage
     stage: Mapped[str] = mapped_column(String(50), default="discovery")
-    # discovery | extraction | structuring | drafting | vetting | ready | post-mortem
+    # deep:  discovery | extraction | structuring | drafting | vetting | ready | post-mortem
+    # spark: feynman | ready
 
     # Content
     extraction_transcript: Mapped[list[dict]] = mapped_column(JSON, default=list)
@@ -106,6 +111,23 @@ class KnowledgeDomain(Base):
     post_count: Mapped[int] = mapped_column(default=0)
     connections: Mapped[list[str]] = mapped_column(JSON, default=list)  # related domain IDs
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ConceptNode(Base):
+    """A crystallized insight from a Spark/Feynman session. Builds the knowledge graph."""
+    __tablename__ = "concept_nodes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(300))
+    core_insight: Mapped[str] = mapped_column(Text)          # 1-sentence crystallized insight
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    domain: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    connections: Mapped[list[str]] = mapped_column(JSON, default=list)  # [ConceptNode.id, ...]
+    task_id: Mapped[str | None] = mapped_column(ForeignKey("codde_tasks.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
 class PublishedPost(Base):

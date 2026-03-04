@@ -147,7 +147,11 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
     // Proactive agent opening — fires once when a fresh task loads with no history
     useEffect(() => {
         if (!task || proactiveTriggered.current || messages.length > 0 || isStreaming) return;
-        if (task.stage !== "discovery") return;
+
+        const isAutoOpen = task.stage === "discovery" && task.task_type !== "spark";
+        const isAutoSpark = task.task_type === "spark" && task.stage === "feynman";
+        if (!isAutoOpen && !isAutoSpark) return;
+
         proactiveTriggered.current = true;
 
         setIsStreaming(true);
@@ -156,9 +160,13 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
         thinkingRef.current = "";
         let accumulated = "";
 
+        const autoMessage = isAutoSpark
+            ? `[AUTO_SPARK: url=${task.source_url || ""}] New Spark session started.`
+            : `[AUTO_OPEN] New session started. Role: ${task.role || "creator"}, Intent: ${task.intent || "teach"}, Domain: ${task.domain || "general"}. Open with a Discovery brief — scan your memory, run compute_patterns, then present 3 specific content angles.`;
+
         streamChat({
             taskId,
-            message: `[AUTO_OPEN] New session started. Role: ${task.role || "creator"}, Intent: ${task.intent || "teach"}, Domain: ${task.domain || "general"}. Open with a Discovery brief — scan your memory, run compute_patterns, then present 3 specific content angles.`,
+            message: autoMessage,
             onAdvanceStage: () => {},
             onTitleUpdate: (title) => {
                 setTask(prev => prev ? { ...prev, title } : prev);
@@ -182,7 +190,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                     role: "agent",
                     content: accumulated,
                     thinking: thinkingRef.current || undefined,
-                    agent_name: "Strategist",
+                    agent_name: isAutoSpark ? "Feynman" : "Strategist",
                     stage: task.stage,
                     timestamp: new Date().toISOString(),
                 };
@@ -204,9 +212,9 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
 
     const advanceStage = useCallback(async () => {
         if (!task) return;
-        const stages: LifecycleStage[] = [
-            "discovery", "extraction", "structuring", "drafting", "vetting", "ready", "post-mortem"
-        ];
+        const stages: LifecycleStage[] = task.task_type === "spark"
+            ? ["feynman", "ready"]
+            : ["discovery", "extraction", "drafting", "vetting", "ready", "post-mortem"];
         const current = stages.indexOf(task.stage);
         const next = stages[current + 1];
         if (!next) return;
@@ -366,7 +374,7 @@ export function WorkshopView({ taskId }: WorkshopViewProps) {
                     <span className="text-2xs text-text-muted font-mono">
                         {getAgentName(task.stage)} · {task.role || "no role set"}
                     </span>
-                    {task.stage !== "post-mortem" && (
+                    {task.stage !== "post-mortem" && task.stage !== "feynman" && (
                         <button
                             onClick={advanceStage}
                             className="flex items-center gap-1 text-2xs text-text-muted hover:text-gold-400 transition-colors font-mono"
@@ -540,6 +548,7 @@ function getAgentName(stage: LifecycleStage): string {
         vetting: "Shaper",
         ready: "Shaper",
         "post-mortem": "Analyst",
+        feynman: "Feynman",
     };
     return map[stage] || "Agent";
 }
@@ -552,6 +561,7 @@ function stageEmoji(stage: LifecycleStage): string {
     const map: Record<LifecycleStage, string> = {
         discovery: "🔭", extraction: "🎙️", structuring: "🗺️",
         drafting: "✍️", vetting: "⚖️", ready: "✅", "post-mortem": "📊",
+        feynman: "⚡",
     };
     return map[stage] || "💬";
 }
@@ -563,8 +573,9 @@ function stagePrompt(stage: LifecycleStage): string {
         structuring: "The Shaper proposes a skeleton — archetype, hook, three key points, landing.",
         drafting: "You write. Ask the Shaper for feedback on specific choices.",
         vetting: "Paste your draft. The Shaper runs all six lint checks using AI.",
-        ready: "Publish-ready. Use the Shaper for platform formatting.",
-        "post-mortem": "Share your metrics. The Analyst does a causal breakdown.",
+        ready: "Synthesis complete. Export, format, or share your work.",
+        "post-mortem": "Reflect on this session. The Analyst identifies what resonated and why.",
+        feynman: "Drop a concept, paper, or URL — or just start talking. The Feynman agent probes your understanding. You drive the loop.",
     };
     return map[stage] || "Start chatting.";
 }
@@ -591,6 +602,8 @@ function friendlyToolName(raw: string): string {
         lint_draft_tool: "Running lint checks",
         export_task_tool: "Exporting task",
         format_for_platform_tool: "Formatting for platform",
+        save_concept_tool: "Saving concept",
+        search_concepts_tool: "Searching concepts",
     };
     return map[raw] ?? raw.replace(/_/g, " ");
 }
@@ -602,8 +615,9 @@ function inputPlaceholder(stage: LifecycleStage): string {
         structuring: "React to the skeleton, or say 'looks good'…",
         drafting: "Paste a section or ask about a specific choice…",
         vetting: "Paste your full draft to run the lint check…",
-        ready: "Paste the final draft for platform formatting, or say 'done'…",
-        "post-mortem": "Share your metrics: impressions, saves, comments, DMs…",
+        ready: "Export, format, or share your synthesis…",
+        "post-mortem": "Reflect on what you learned and why it resonated…",
+        feynman: "Explain it, question it, or say 'let's save this'…",
     };
     return map[stage] || "Message the agent…";
 }

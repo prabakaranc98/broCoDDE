@@ -47,6 +47,7 @@ function QueueContent() {
         }
         Promise.all([
             api.tasks.list("ready", seriesId),
+            api.tasks.list("feynman", seriesId),
             api.tasks.list("vetting", seriesId),
             api.tasks.list("drafting", seriesId),
             api.tasks.list("structuring", seriesId),
@@ -66,7 +67,7 @@ function QueueContent() {
             <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
                     <div className="text-xs text-text-muted font-mono uppercase tracking-wider mb-1 flex items-center gap-2">
-                        <Link href="/series" className="hover:text-gold-400 transition-colors">Publish Queue</Link>
+                        <Link href="/series" className="hover:text-gold-400 transition-colors">Sessions</Link>
                         {series && (
                             <>
                                 <ChevronRight size={12} />
@@ -75,7 +76,7 @@ function QueueContent() {
                         )}
                     </div>
                     <h1 className="text-2xl font-medium text-text-primary">
-                        {ready.length === 0 ? "No posts ready to publish" : `${ready.length} ready to publish`}
+                        {ready.length === 0 ? "All sessions in progress" : `${ready.length} session${ready.length > 1 ? "s" : ""} complete`}
                     </h1>
                 </div>
 
@@ -83,8 +84,9 @@ function QueueContent() {
 
                 {ready.length > 0 && (
                     <div className="mb-8">
+                        <div className="text-xs text-text-muted font-mono uppercase tracking-wider mb-3">Complete</div>
                         {ready.map(task => (
-                            <TaskCard key={task.id} task={task} showPublish />
+                            <TaskCard key={task.id} task={task} showComplete />
                         ))}
                     </div>
                 )}
@@ -102,7 +104,7 @@ function QueueContent() {
 
                 {!loading && tasks.length === 0 && (
                     <div className="text-center text-text-muted text-sm py-16">
-                        No tasks yet.{" "}
+                        No sessions yet.{" "}
                         <Link href="/workshop/new" className="text-gold-400 hover:underline">Start one →</Link>
                     </div>
                 )}
@@ -113,17 +115,17 @@ function QueueContent() {
 
 export default function QueuePage() {
     return (
-        <Suspense fallback={<div className="p-6 text-sm text-text-muted">Loading queue…</div>}>
+        <Suspense fallback={<div className="p-6 text-sm text-text-muted">Loading sessions…</div>}>
             <QueueContent />
         </Suspense>
     );
 }
 
-function TaskCard({ task, showPublish }: { task: CoddeTask; showPublish?: boolean }) {
-    const [publishing, setPublishing] = useState(false);
+function TaskCard({ task, showComplete }: { task: CoddeTask; showComplete?: boolean }) {
+    const [marking, setMarking] = useState(false);
 
-    const markPublished = async () => {
-        setPublishing(true);
+    const markComplete = async () => {
+        setMarking(true);
         await api.tasks.updateStage(task.id, "post-mortem");
         window.location.reload();
     };
@@ -161,13 +163,13 @@ function TaskCard({ task, showPublish }: { task: CoddeTask; showPublish?: boolea
                     <Link href={`/workshop/${task.id}`} className="btn-ghost text-xs">
                         Edit
                     </Link>
-                    {showPublish ? (
+                    {showComplete ? (
                         <button
-                            onClick={markPublished}
-                            disabled={publishing}
+                            onClick={markComplete}
+                            disabled={marking}
                             className="btn-gold text-xs disabled:opacity-50"
                         >
-                            {publishing ? "…" : "Mark Published"}
+                            {marking ? "…" : "Mark Complete"}
                         </button>
                     ) : (
                         <span className={`badge-${task.stage}`}>{STAGE_LABELS[task.stage]}</span>

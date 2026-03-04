@@ -96,6 +96,12 @@ async def create_tables():
             await _sqlite_add_column_if_missing(
                 conn, "codde_tasks", "lint_results", "JSON"
             )
+            await _sqlite_add_column_if_missing(
+                conn, "codde_tasks", "task_type", "VARCHAR(20) NOT NULL DEFAULT 'deep'"
+            )
+            await _sqlite_add_column_if_missing(
+                conn, "codde_tasks", "source_url", "VARCHAR(500)"
+            )
 
 
 async def _sqlite_add_column_if_missing(conn, table: str, column: str, definition: str):

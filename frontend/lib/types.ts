@@ -12,17 +12,19 @@ export type LifecycleStage =
     | "drafting"
     | "vetting"
     | "ready"
-    | "post-mortem";
+    | "post-mortem"
+    | "feynman";
 
 export const LIFECYCLE_STAGES: LifecycleStage[] = [
     "discovery",
     "extraction",
-    "structuring",
     "drafting",
     "vetting",
     "ready",
     "post-mortem",
 ];
+
+export const SPARK_STAGES: LifecycleStage[] = ["feynman", "ready"];
 
 export const STAGE_LABELS: Record<LifecycleStage, string> = {
     discovery: "Discovery",
@@ -32,6 +34,7 @@ export const STAGE_LABELS: Record<LifecycleStage, string> = {
     vetting: "Vetting",
     ready: "Ready",
     "post-mortem": "Post-Mortem",
+    feynman: "Feynman",
 };
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
@@ -114,10 +117,28 @@ export interface CoddeTask {
     domain: string | null;
     series_id: string | null;
     stage: LifecycleStage;
+    task_type: "deep" | "spark";
+    source_url?: string | null;
     lint_results: LintResults | null;
     skeleton: Skeleton | null;
     chat_history?: ChatMessage[];
     final_content?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+// ── Concepts ──────────────────────────────────────────────────────────────────
+
+export interface ConceptNode {
+    id: string;
+    title: string;
+    core_insight: string;
+    source_url?: string | null;
+    source_title?: string | null;
+    domain?: string | null;
+    tags: string[];
+    connections: string[];
+    task_id?: string | null;
     created_at: string;
     updated_at: string;
 }

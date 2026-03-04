@@ -7,6 +7,7 @@ import asyncio
 from typing import AsyncIterator
 
 from app.agents.analyst import build_analyst
+from app.agents.feynman import build_feynman
 from app.agents.interviewer import build_interviewer
 from app.agents.shaper import build_shaper
 from app.agents.strategist import build_strategist
@@ -21,6 +22,7 @@ STAGE_AGENT_MAP = {
     "ready":        "shaper",
     "post-mortem":  "analyst",
     "observatory":  "analyst",
+    "feynman":      "feynman",
 }
 
 
@@ -54,6 +56,8 @@ async def stream_chat(
         agent = build_interviewer(role=role, user_id=user_id, session_id=session_id)
     elif agent_name == "analyst":
         agent = build_analyst(user_id=user_id, session_id=session_id)
+    elif agent_name == "feynman":
+        agent = build_feynman(user_id=user_id, session_id=session_id)
     else:
         agent = build_shaper(mode=task_stage, user_id=user_id, session_id=session_id, deep_critique=deep_critique)
 
@@ -132,6 +136,11 @@ async def _mock_stream(stage: str, role: str) -> AsyncIterator[str]:
         "post-mortem": [
             "**[MOCK — Post-Mortem]**\n\n",
             "Share your 24hr metrics and I'll analyze them.\n",
+            "_Add `OPENROUTER_API_KEY` to `.env` for live agent responses._",
+        ],
+        "feynman": [
+            "[MOCK — Feynman Session]\n\n",
+            "Explain this to me as you understand it.\n\n",
             "_Add `OPENROUTER_API_KEY` to `.env` for live agent responses._",
         ],
     }

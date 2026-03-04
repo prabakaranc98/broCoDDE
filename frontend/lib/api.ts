@@ -38,7 +38,7 @@ export const api = {
             return request<import("./types").CoddeTask[]>(`/tasks${qs ? `?${qs}` : ""}`);
         },
         get: (id: string) => request<import("./types").CoddeTask>(`/tasks/${id}`),
-        create: (data: { role: string; intent: string; domain?: string; series_id?: string; title?: string }) =>
+        create: (data: { role: string; intent: string; domain?: string; series_id?: string; title?: string; task_type?: string; source_url?: string }) =>
             request<import("./types").CoddeTask>("/tasks", {
                 method: "POST",
                 body: JSON.stringify(data),
@@ -119,6 +119,26 @@ export const api = {
     skills: {
         list: () => request<{ name: string; description: string; dir: string }[]>("/skills"),
         get: (name: string) => request<{ name: string; content: string }>(`/skills/${name}`),
+    },
+
+    concepts: {
+        list: (domain?: string) => {
+            const params = domain ? `?domain=${encodeURIComponent(domain)}` : "";
+            return request<import("./types").ConceptNode[]>(`/concepts${params}`);
+        },
+        get: (id: string) => request<import("./types").ConceptNode>(`/concepts/${id}`),
+        create: (data: Partial<import("./types").ConceptNode>) =>
+            request<import("./types").ConceptNode>("/concepts", {
+                method: "POST",
+                body: JSON.stringify(data),
+            }),
+        update: (id: string, data: Partial<import("./types").ConceptNode>) =>
+            request<import("./types").ConceptNode>(`/concepts/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify(data),
+            }),
+        delete: (id: string) =>
+            request<{ ok: boolean }>(`/concepts/${id}`, { method: "DELETE" }),
     },
 
     health: () => request<{ status: string; version: string; provider: string; mock_mode: boolean }>("/health"),

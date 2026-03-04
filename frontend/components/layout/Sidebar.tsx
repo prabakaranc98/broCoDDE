@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, ListTodo, Telescope, Brain, Layers, Plus } from "lucide-react";
+import { LayoutDashboard, ListTodo, Telescope, Brain, Layers, Plus, Lightbulb } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoddeTask, Series } from "@/lib/types";
 import clsx from "clsx";
 
 const NAV = [
     { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/queue", icon: ListTodo, label: "Queue" },
+    { href: "/queue", icon: ListTodo, label: "Sessions" },
+    { href: "/concepts", icon: Lightbulb, label: "Concepts" },
     { href: "/observatory", icon: Telescope, label: "Observatory" },
     { href: "/context", icon: Brain, label: "Context" },
     { href: "/series", icon: Layers, label: "Series" },
@@ -20,7 +21,7 @@ export function Sidebar() {
     const path = usePathname();
     const [recentTasks, setRecentTasks] = useState<CoddeTask[]>([]);
     const [seriesMap, setSeriesMap] = useState<Record<string, Series>>({});
-    const [stats, setStats] = useState({ posts: 0, saves: 0, queue: 0 });
+    const [stats, setStats] = useState({ active: 0, complete: 0 });
 
     // Active task: the most recently opened workshop task
     const activeTaskMatch = path.match(/^\/workshop\/([^/]+)$/);
@@ -31,9 +32,8 @@ export function Sidebar() {
         api.tasks.list().then(tasks => {
             setRecentTasks(tasks.slice(0, 5));
             setStats({
-                posts: tasks.filter(t => t.stage === "post-mortem").length,
-                saves: 0, // populated from observatory in a full impl
-                queue: tasks.filter(t => t.stage === "ready").length,
+                active: tasks.filter(t => !["ready", "post-mortem"].includes(t.stage)).length,
+                complete: tasks.filter(t => ["ready", "post-mortem"].includes(t.stage)).length,
             });
         }).catch(() => { });
         // Load series for badge display
@@ -52,14 +52,14 @@ export function Sidebar() {
                 <span className="font-mono text-text-muted text-xs ml-1">v0.4</span>
             </div>
 
-            {/* New Task CTA */}
+            {/* New Session CTA */}
             <Link
                 href="/workshop/new"
                 className="flex items-center gap-2 mx-1 mb-3 px-3 py-2 bg-gold-500/10 hover:bg-gold-500/20
                    border border-gold-500/30 rounded text-gold-400 text-sm font-medium transition-colors"
             >
                 <Plus size={14} />
-                New CoDDE-Task
+                New Session
             </Link>
 
             {/* Navigation */}
@@ -110,7 +110,8 @@ export function Sidebar() {
                                         path === `/workshop/${t.id}` ? "bg-surface-700 text-text-primary" : "text-text-muted hover:bg-surface-800 hover:text-text-secondary"
                                     )}
                                 >
-                                    <span className="truncate">
+                                    <span className="truncate flex items-center gap-1">
+                                        {t.task_type === "spark" && <span className="text-cyan-400 shrink-0">⚡</span>}
                                         {t.title || <em className="opacity-50">Untitled</em>}
                                     </span>
                                     {s && (
@@ -128,12 +129,12 @@ export function Sidebar() {
             {/* Footer stats */}
             <div className="mx-1 mt-3 pt-3 border-t border-border-subtle grid grid-cols-2 gap-2 px-1">
                 <div>
-                    <div className="text-2xs text-text-muted font-mono">Posts</div>
-                    <div className="text-sm font-medium text-text-primary">{stats.posts || "—"}</div>
+                    <div className="text-2xs text-text-muted font-mono">Active</div>
+                    <div className="text-sm font-medium text-text-primary">{stats.active || "—"}</div>
                 </div>
                 <div>
-                    <div className="text-2xs text-text-muted font-mono">Queue</div>
-                    <div className="text-sm font-medium text-text-primary">{stats.queue || "—"}</div>
+                    <div className="text-2xs text-text-muted font-mono">Complete</div>
+                    <div className="text-sm font-medium text-text-primary">{stats.complete || "—"}</div>
                 </div>
             </div>
 

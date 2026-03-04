@@ -491,3 +491,85 @@ async def compute_patterns_tool(limit: int = 20) -> str:
 
     return "\n".join(lines)
 
+
+# ── Concept Tools ──────────────────────────────────────────────────────────────
+
+async def save_concept_tool(
+    title: str,
+    core_insight: str,
+    source_url: str | None = None,
+    source_title: str | None = None,
+    domain: str | None = None,
+    tags: list[str] | None = None,
+    task_id: str | None = None,
+) -> str:
+    """
+    Save a crystallized concept to the knowledge graph.
+
+    Call this when the user signals they're done with a Feynman session
+    or explicitly asks to save a concept.
+
+    Args:
+        title: Short, memorable concept name.
+        core_insight: One clear sentence capturing the key understanding.
+        source_url: URL of the paper or article explored.
+        source_title: Title of the source material.
+        domain: Knowledge domain (e.g., "Machine Learning", "Cognitive Science").
+        tags: List of tags for cross-referencing.
+        task_id: The CoddeTask ID this concept came from.
+    """
+    from app.db.database import AsyncSessionLocal
+    from app.db.models import ConceptNode
+
+    async with AsyncSessionLocal() as db:
+        concept = ConceptNode(
+            title=title,
+            core_insight=core_insight,
+            source_url=source_url,
+            source_title=source_title,
+            domain=domain,
+            tags=tags or [],
+            task_id=task_id,
+        )
+        db.add(concept)
+        await db.commit()
+        await db.refresh(concept)
+        return json.dumps({"ok": True, "id": concept.id, "title": concept.title})
+
+
+async def search_concepts_tool(query: str) -> str:
+    """
+    Search your concept knowledge graph by keyword.
+
+    Use this when the user asks about past sessions, related concepts,
+    or when an unmistakable overlap surfaces in the current conversation.
+
+    Args:
+        query: Keyword search across concept titles, insights, and domains.
+    """
+    from app.db.database import AsyncSessionLocal
+    from app.db.models import ConceptNode
+    from sqlalchemy import or_, select
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ConceptNode)
+            .where(or_(
+                ConceptNode.title.ilike(f"%{query}%"),
+                ConceptNode.core_insight.ilike(f"%{query}%"),
+                ConceptNode.domain.ilike(f"%{query}%"),
+            ))
+            .order_by(ConceptNode.created_at.desc())
+            .limit(5)
+        )
+        concepts = list(result.scalars().all())
+
+    if not concepts:
+        return f"No concepts found matching '{query}'."
+
+    lines = [f"Found {len(concepts)} concept(s) matching '{query}':\n"]
+    for c in concepts:
+        lines.append(f"- **{c.title}** ({c.domain or 'no domain'})\n  {c.core_insight}")
+        if c.source_title:
+            lines.append(f"  Source: {c.source_title}")
+    return "\n".join(lines)

@@ -76,13 +76,19 @@ class ContentDiscoveryToolkit(Toolkit):
 
         try:
             api = HfApi(token=self.hf_token)
-            call_kwargs: dict = {"limit": min(max(limit, 1), 10)}
+            # Fetch more than limit to have headroom after upvote filtering
+            call_kwargs: dict = {"limit": 30}
             if date:
                 call_kwargs["date"] = date
 
             papers = list(api.list_daily_papers(**call_kwargs))
             if not papers:
                 return f"No HF daily papers found{' on ' + date if date else ' today'}."
+
+            # Filter: only papers with meaningful community signal (>10 upvotes)
+            papers = [p for p in papers if getattr(p, "upvotes", 0) > 10]
+            if not papers:
+                return "No HF daily papers with more than 10 upvotes found today."
 
             label = date or "Today"
             lines = [f"## HuggingFace Daily Papers — {label}\n"]
@@ -137,10 +143,12 @@ class ContentDiscoveryToolkit(Toolkit):
 
         try:
             api = HfApi(token=self.hf_token)
-            papers = list(api.list_papers(query=query))[:limit]
+            all_papers = list(api.list_papers(query=query))
+            # Filter: only papers with meaningful community signal (>10 upvotes)
+            papers = [p for p in all_papers if getattr(p, "upvotes", 0) > 10][:limit]
 
             if not papers:
-                return f"No HF papers found for: '{query}'"
+                return f"No HF papers with more than 10 upvotes found for: '{query}'"
 
             lines = [f"## HuggingFace Papers — '{query}'\n"]
             for i, p in enumerate(papers, 1):

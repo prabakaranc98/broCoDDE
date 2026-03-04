@@ -22,6 +22,7 @@ router = APIRouter()
 VALID_STAGES = [
     "discovery", "extraction", "structuring",
     "drafting", "vetting", "ready", "post-mortem",
+    "feynman",  # spark mode
 ]
 
 
@@ -33,6 +34,8 @@ class TaskCreate(BaseModel):
     domain: str | None = None
     series_id: str | None = None
     title: str | None = None
+    task_type: str = "deep"       # "deep" | "spark"
+    source_url: str | None = None  # spark: URL of paper/article being explored
 
 
 class TaskUpdate(BaseModel):
@@ -57,6 +60,8 @@ class TaskResponse(BaseModel):
     domain: str | None
     series_id: str | None
     stage: str
+    task_type: str = "deep"
+    source_url: str | None = None
     lint_results: dict | None
     skeleton: dict | None
     chat_history: list[dict] | None = None
@@ -78,6 +83,7 @@ def _generate_task_id() -> str:
 
 @router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db)):
+    initial_stage = "feynman" if data.task_type == "spark" else "discovery"
     task = CoddeTask(
         id=_generate_task_id(),
         role=data.role,
@@ -85,7 +91,9 @@ async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db)):
         domain=data.domain,
         series_id=data.series_id,
         title=data.title,
-        stage="discovery",
+        task_type=data.task_type,
+        source_url=data.source_url,
+        stage=initial_stage,
     )
     db.add(task)
     await db.flush()

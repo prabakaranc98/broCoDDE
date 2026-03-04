@@ -1,7 +1,7 @@
 "use client";
 
 import type { CoddeTask, LifecycleStage } from "@/lib/types";
-import { LIFECYCLE_STAGES, STAGE_LABELS } from "@/lib/types";
+import { LIFECYCLE_STAGES, SPARK_STAGES, STAGE_LABELS } from "@/lib/types";
 import { ChevronRight } from "lucide-react";
 import clsx from "clsx";
 
@@ -13,6 +13,7 @@ const STAGE_COLORS: Record<LifecycleStage, string> = {
     vetting: "bg-orange-500",
     ready: "bg-green-500",
     "post-mortem": "bg-stone-500",
+    feynman: "bg-cyan-500",
 };
 
 interface LifecycleBarProps {
@@ -21,12 +22,15 @@ interface LifecycleBarProps {
 }
 
 export function LifecycleBar({ task, onAdvance }: LifecycleBarProps) {
-    const currentIdx = LIFECYCLE_STAGES.indexOf(task.stage);
-    const canAdvance = currentIdx < LIFECYCLE_STAGES.length - 1;
+    const stages = task.task_type === "spark" ? SPARK_STAGES : LIFECYCLE_STAGES;
+    const currentIdx = stages.indexOf(task.stage);
+    // Feynman stage: user drives exit — hide advance button
+    const isFeynman = task.stage === "feynman";
+    const canAdvance = !isFeynman && currentIdx < stages.length - 1;
 
     return (
         <div className="flex items-center gap-1 px-4 py-2.5 bg-surface-900 border-b border-border-subtle overflow-x-auto">
-            {LIFECYCLE_STAGES.map((stage, i) => {
+            {stages.map((stage, i) => {
                 const isActive = stage === task.stage;
                 const isPast = i < currentIdx;
                 const isFuture = i > currentIdx;
@@ -44,7 +48,7 @@ export function LifecycleBar({ task, onAdvance }: LifecycleBarProps) {
                             )} />
                             {STAGE_LABELS[stage]}
                         </div>
-                        {i < LIFECYCLE_STAGES.length - 1 && (
+                        {i < stages.length - 1 && (
                             <ChevronRight size={10} className="text-border-emphasis shrink-0" />
                         )}
                     </div>

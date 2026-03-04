@@ -115,7 +115,7 @@ def build_analyst(
         update_memory_on_run=True,
         add_memories_to_context=True,
         add_history_to_context=True,
-        num_history_runs=5,
+        num_history_runs=3,
         user_id=user_id,
         session_id=session_id,
         markdown=True,

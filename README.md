@@ -103,31 +103,31 @@ Each card has:
 ```mermaid
 graph TB
     subgraph Frontend["Frontend — Next.js 15"]
-        DASH[Dashboard — Feed + Active Sessions]
-        WS[WorkshopView — Chat + Lifecycle Bar]
-        CON[Concepts — Knowledge Graph Library]
-        NEW[New Session — Deep / Spark Toggle]
+        DASH[Dashboard]
+        WS[WorkshopView]
+        CON[Concepts Library]
+        NEW[New Session]
     end
 
     subgraph Backend["Backend — FastAPI"]
-        CHAT[POST /tasks/id/chat — SSE Stream]
-        DISC[GET /discovery/feed — Personalized Cards]
-        CONCEPTS[/concepts — ConceptNode CRUD]
-        HARNESS[harness.py — Stage to Agent Router]
-        AGENTS[5 Agents: Strategist · Interviewer · Shaper · Analyst · Feynman]
-        TOOLS[Tools: save_concept · search_concepts · lint · export · memory]
-        DB[(SQLite / PostgreSQL — Tasks + Concepts + Memory)]
+        CHAT[chat.py — SSE Stream]
+        DISC[discovery.py — Feed Endpoint]
+        CONCEPTS[concepts.py — ConceptNode API]
+        HARNESS[harness.py — Stage Router]
+        AGENTS[Strategist + Interviewer + Shaper + Analyst + Feynman]
+        TOOLS[save_concept + search_concepts + lint + export + memory]
+        DB[(SQLite or PostgreSQL)]
     end
 
     subgraph AI["AI — OpenRouter"]
-        T2[Tier 2 — claude-sonnet-4.6]
-        T3[Tier 3 — claude-opus-4.6]
+        T2[Tier 2 — Sonnet 4.6]
+        T3[Tier 3 — Opus 4.6]
     end
 
     subgraph External["External APIs"]
-        HF[HuggingFace Hub — Daily Papers]
-        HN[HackerNews Algolia — Recent Stories]
-        EXA[Exa Neural Search — Niche Perspectives]
+        HF[HuggingFace Hub]
+        HN[HackerNews Algolia]
+        EXA[Exa Neural Search]
     end
 
     WS -->|SSE| CHAT

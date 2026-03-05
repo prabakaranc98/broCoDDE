@@ -103,31 +103,31 @@ Each card has:
 ```mermaid
 graph TB
     subgraph Frontend["Frontend — Next.js 15"]
-        DASH[Dashboard\nPersonalized Feed + Active Sessions]
-        WS[WorkshopView\nChat + Lifecycle Bar + Streaming]
-        CON[Concepts Page\nKnowledge Graph Library]
-        NEW[New Session\nDeep / Spark Mode Toggle]
+        DASH[Dashboard — Feed + Active Sessions]
+        WS[WorkshopView — Chat + Lifecycle Bar]
+        CON[Concepts — Knowledge Graph Library]
+        NEW[New Session — Deep / Spark Toggle]
     end
 
     subgraph Backend["Backend — FastAPI"]
-        CHAT[POST /tasks/id/chat\nSSE Streaming]
-        DISC[GET /discovery/feed\nPersonalized Cards]
-        CONCEPTS[/concepts CRUD\nConceptNode graph]
-        HARNESS[harness.py\nStage → Agent Router]
-        AGENTS[5 Agents\nStrategist · Interviewer · Shaper · Analyst · Feynman]
-        TOOLS[Tools\nsave_concept · search_concepts · lint · export · memory]
-        DB[(SQLite / PostgreSQL\nTasks + Concepts + Memory)]
+        CHAT[POST /tasks/id/chat — SSE Stream]
+        DISC[GET /discovery/feed — Personalized Cards]
+        CONCEPTS[/concepts — ConceptNode CRUD]
+        HARNESS[harness.py — Stage to Agent Router]
+        AGENTS[5 Agents: Strategist · Interviewer · Shaper · Analyst · Feynman]
+        TOOLS[Tools: save_concept · search_concepts · lint · export · memory]
+        DB[(SQLite / PostgreSQL — Tasks + Concepts + Memory)]
     end
 
     subgraph AI["AI — OpenRouter"]
-        T2[Tier 2\nclaude-sonnet-4.6]
-        T3[Tier 3\nclaude-opus-4.6]
+        T2[Tier 2 — claude-sonnet-4.6]
+        T3[Tier 3 — claude-opus-4.6]
     end
 
     subgraph External["External APIs"]
-        HF[HuggingFace Hub\nDaily Papers]
-        HN[HackerNews Algolia\nRecent Stories]
-        EXA[Exa Neural Search\nNiche Perspectives]
+        HF[HuggingFace Hub — Daily Papers]
+        HN[HackerNews Algolia — Recent Stories]
+        EXA[Exa Neural Search — Niche Perspectives]
     end
 
     WS -->|SSE| CHAT

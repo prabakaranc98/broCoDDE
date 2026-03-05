@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Tier 3: Most capable — Strategist Discovery, Analyst post-mortem, deep critique
     tier1_model: str = "anthropic/claude-sonnet-4.6"          # standard utility tasks
     tier2_model: str = "anthropic/claude-sonnet-4.6"          # balanced — main conversations
-    tier3_model: str = "anthropic/claude-opus-4.6"            # critical reasoning and analysis
+    tier3_model: str = "google/gemini-3.1-pro-preview"        # critical reasoning and analysis
 
     # ── External APIs ─────────────────────────────────────────────────────────
     exa_api_key: str = ""  # https://exa.ai — used for Discovery web search
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
             defaults = {
                 "tier1_model": "anthropic/claude-sonnet-4.6",
                 "tier2_model": "anthropic/claude-sonnet-4.6",
-                "tier3_model": "anthropic/claude-opus-4.6",
+                "tier3_model": "google/gemini-3.1-pro-preview",
             }
             return defaults.get(info.field_name, v)
         return v

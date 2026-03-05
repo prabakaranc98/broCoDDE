@@ -26,7 +26,7 @@ OPENROUTER_MODELS: dict[int, dict[str, str]] = {
         "alt": "anthropic/claude-sonnet-4.6",
     },
     3: {  # Tier 3 — Critical Reasoning (Discovery, deep critique, post-mortem)
-        "primary": "anthropic/claude-sonnet-4.6",        # Sonnet is sufficient; Opus via TIER3_MODEL env if needed
+        "primary": "google/gemini-3.1-pro-preview",
         "alt": "anthropic/claude-sonnet-4.6",
     },
 }

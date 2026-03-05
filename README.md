@@ -121,7 +121,7 @@ graph TB
 
     subgraph AI["AI — OpenRouter"]
         T2[Tier 2 — Sonnet 4.6]
-        T3[Tier 3 — Opus 4.6]
+        T3[Tier 3 — Gemini 3.1 Pro]
     end
 
     subgraph External["External APIs"]
@@ -265,7 +265,7 @@ All AI calls route through **OpenRouter** — a single endpoint for all models.
 |---|---|---|
 | Tier 1 | `deepseek/deepseek-chat:free` | Utility tasks, memory writes, grammar checks |
 | Tier 2 | `anthropic/claude-sonnet-4.6` | Extraction, drafting, vetting — the daily workhorses |
-| Tier 3 | `openrouter/auto` | Discovery briefs, Feynman sessions, post-mortems |
+| Tier 3 | `google/gemini-3.1-pro-preview` | Discovery briefs, Feynman sessions, post-mortems |
 
 All tiers overridable: `TIER1_MODEL`, `TIER2_MODEL`, `TIER3_MODEL` in `.env`.
 
@@ -430,7 +430,7 @@ HF_TOKEN=hf_...              # Authenticated HF Hub access (higher rate limits)
 # Model overrides
 TIER1_MODEL=deepseek/deepseek-chat:free
 TIER2_MODEL=anthropic/claude-sonnet-4.6
-TIER3_MODEL=openrouter/auto
+TIER3_MODEL=google/gemini-3.1-pro-preview
 
 # Application
 DATABASE_URL=sqlite+aiosqlite:///./brocodde.db   # or postgresql+asyncpg://...
